@@ -1,7 +1,8 @@
-import { BlendModes, Math as PhaserMath, Scene } from 'phaser';
+import { BlendModes, Scene } from 'phaser';
 import { EventBus } from '../EventBus';
+import { Player } from '../objects/Player';
 
-// 엘로딘 느낌의 배경 시안
+// 엘로딘 느낌의 숲
 // 이미지 에셋 없이 캔버스로 텍스처를 그려서 레이어(패럴랙스) + 빛 + 파티클로 분위기를 낸다.
 
 const VIEW_W = 1280;
@@ -10,6 +11,7 @@ const WORLD_W = 3840;
 const GROUND_TOP = 600;
 const TREE_X = 1920;
 const TREE_SCALE = 0.75;
+const INTERACT_RANGE = 140;   // 황금 나무에서 이 거리 안이면 상호작용 가능
 
 type Ctx = CanvasRenderingContext2D;
 
@@ -66,16 +68,17 @@ function taperedCurve (ctx: CanvasRenderingContext2D, p: number[], w0: number, w
     }
 }
 
-export class ElodinPreview extends Scene
+export class Forest extends Scene
 {
     private parallax: { sprite: Phaser.GameObjects.TileSprite; factor: number }[] = [];
     private fogs: { sprite: Phaser.GameObjects.TileSprite; factor: number; drift: number }[] = [];
-    private cursors?: Phaser.Types.Input.Keyboard.CursorKeys;
-    private autoDir = 1;
+    private player!: Player;
+    private treeLabel!: Phaser.GameObjects.Text;
+    private treeGlow!: Phaser.GameObjects.Image;
 
     constructor ()
     {
-        super('ElodinPreview');
+        super('Forest');
     }
 
     create ()
@@ -84,7 +87,7 @@ export class ElodinPreview extends Scene
 
         const cam = this.cameras.main;
         cam.setBounds(0, 0, WORLD_W, VIEW_H);
-        cam.scrollX = TREE_X - VIEW_W / 2;
+        this.physics.world.setBounds(0, 0, WORLD_W, VIEW_H);
 
         // 1. 하늘 (고정)
         this.add.image(0, 0, 'sky').setOrigin(0).setScrollFactor(0).setDepth(0);
@@ -127,47 +130,34 @@ export class ElodinPreview extends Scene
         // 6. 반딧불, 떨어지는 황금 꽃잎
         this.createParticles();
 
-        // 7. 가장 앞쪽 나무 (화면보다 빠르게 움직여 깊이감)
+        // 7. 땅 판정 + 플레이어 + 카메라
+        const ground = this.add.zone(WORLD_W / 2, GROUND_TOP + 50, WORLD_W, 100);
+        this.physics.add.existing(ground, true);
+
+        this.player = new Player(this, TREE_X - 520, GROUND_TOP - 40);
+        this.physics.add.collider(this.player.hitbox, ground);
+
+        cam.startFollow(this.player.hitbox, true, 0.08, 0.08);
+        cam.setDeadzone(160, 200);
+
+        // 8. 가장 앞쪽 나무 (화면보다 빠르게 움직여 깊이감)
         this.addParallax('trees-front', 1.3, 40);
 
-        // 8. 비네팅 + 안내 문구
+        // 9. 비네팅 + 조작 안내
         this.add.image(0, 0, 'vignette').setOrigin(0).setScrollFactor(0).setDepth(50);
-        this.add.text(24, 20, '엘로딘 배경 시안  ·  ← → 로 둘러보기', {
+        this.add.text(24, 20, '← → 이동  ·  Space / Alt 점프  ·  ↑ 프로젝트 보기', {
             fontFamily: 'sans-serif', fontSize: '16px', color: '#cfeee6'
         }).setScrollFactor(0).setAlpha(0.7).setDepth(60);
-
-        this.cursors = this.input.keyboard?.createCursorKeys();
 
         EventBus.emit('current-scene-ready', this);
     }
 
-    update (_time: number, delta: number)
+    update (time: number)
     {
+        this.player.update(time);
+        this.updateTreeInteraction();
+
         const cam = this.cameras.main;
-        const dt = delta / 1000;
-        const maxScroll = WORLD_W - VIEW_W;
-
-        if (this.cursors?.left.isDown)
-        {
-            cam.scrollX -= 320 * dt;
-            this.autoDir = -1;
-        }
-        else if (this.cursors?.right.isDown)
-        {
-            cam.scrollX += 320 * dt;
-            this.autoDir = 1;
-        }
-        else
-        {
-            // 키를 안 누르면 천천히 자동으로 둘러본다
-            cam.scrollX += this.autoDir * 35 * dt;
-            if (cam.scrollX <= 0 || cam.scrollX >= maxScroll)
-            {
-                this.autoDir *= -1;
-            }
-        }
-
-        cam.scrollX = PhaserMath.Clamp(cam.scrollX, 0, maxScroll);
 
         for (const layer of this.parallax)
         {
@@ -177,6 +167,27 @@ export class ElodinPreview extends Scene
         for (const fog of this.fogs)
         {
             fog.sprite.tilePositionX = cam.scrollX * fog.factor + (this.time.now / 1000) * fog.drift;
+        }
+    }
+
+    // 황금 나무 근처에서만 안내를 보여 주고, ↑ 키로 프로젝트 열기 이벤트를 보낸다
+    private updateTreeInteraction ()
+    {
+        const near = Math.abs(this.player.x - TREE_X) < INTERACT_RANGE && this.player.onGround;
+        const target = near ? 1 : 0;
+        this.treeLabel.setAlpha(this.treeLabel.alpha + (target - this.treeLabel.alpha) * 0.15);
+
+        if (near && this.player.justPressedUp())
+        {
+            // React 쪽에서 이 이벤트를 받아 프로젝트 상세 팝업을 띄울 예정
+            EventBus.emit('open-project', 'golden-tree');
+
+            this.tweens.add({
+                targets: this.treeGlow,
+                alpha: { from: 1, to: 0.22 },
+                duration: 600,
+                ease: 'Quad.easeOut'
+            });
         }
     }
 
@@ -226,7 +237,7 @@ export class ElodinPreview extends Scene
             .setDepth(10);
 
         // 잎 위에 한 번 더 빛을 얹어서 번지는 느낌
-        this.add.image(TREE_X, 230, 'glow-warm')
+        this.treeGlow = this.add.image(TREE_X, 230, 'glow-warm')
             .setScale(1.6)
             .setBlendMode(BlendModes.ADD)
             .setAlpha(0.22)
@@ -260,14 +271,14 @@ export class ElodinPreview extends Scene
         });
 
         // 프로젝트 나무 안내
-        const label = this.add.text(TREE_X, GROUND_TOP - 70, '↑  프로젝트 보기', {
+        this.treeLabel = this.add.text(TREE_X, GROUND_TOP - 110, '↑  프로젝트 보기', {
             fontFamily: 'sans-serif', fontSize: '18px', color: '#fff4c4',
             backgroundColor: 'rgba(10, 30, 40, 0.55)', padding: { x: 12, y: 6 }
-        }).setOrigin(0.5).setDepth(30);
+        }).setOrigin(0.5).setDepth(30).setAlpha(0);
 
         this.tweens.add({
-            targets: label,
-            y: GROUND_TOP - 78,
+            targets: this.treeLabel,
+            y: GROUND_TOP - 118,
             duration: 1200,
             yoyo: true,
             repeat: -1,
