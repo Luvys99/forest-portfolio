@@ -1,4 +1,5 @@
 import { BlendModes, GameObjects, Input, Math as PhaserMath, Scene } from 'phaser';
+import { LadderDef } from '../world/layout';
 
 // 이동 감각 조절 값
 const MAX_SPEED = 260;
@@ -9,12 +10,15 @@ const JUMP_VELOCITY = 640;
 const JUMP_CUT_VELOCITY = 260;   // 점프 키를 일찍 떼면 이 속도로 줄여서 낮게 뛴다
 const COYOTE_MS = 90;            // 발판에서 막 떨어진 직후에도 점프 허용
 const JUMP_BUFFER_MS = 120;      // 착지 직전에 누른 점프도 기억해 뒀다가 실행
+const CLIMB_SPEED = 220;
+const LADDER_GRAB_RANGE = 22;    // 사다리 가운데에서 이 거리 안이면 잡을 수 있다
+const DROP_THROUGH_MS = 250;     // ↓ + 점프로 발판 아래로 내려갈 때 통과 시간
 
 // 히트박스 크기 (그림과 별개)
 const HITBOX_W = 34;
 const HITBOX_H = 46;
 
-type Keys = Record<'left' | 'right' | 'up' | 'space' | 'alt', Input.Keyboard.Key>;
+type Keys = Record<'left' | 'right' | 'up' | 'down' | 'space' | 'alt', Input.Keyboard.Key>;
 
 // 플레이어 = 물리 판정용 히트박스(Zone) + 보이는 그림(Image)
 // 그림을 늘리고 줄이는 연출이 물리 판정 크기에 영향을 주지 않도록 둘을 나눴다.
@@ -24,12 +28,19 @@ export class Player
     readonly hitbox: GameObjects.Zone;
     readonly body: Phaser.Physics.Arcade.Body;
 
+    ladders: LadderDef[] = [];
+    locked = false;              // 포탈 이동 중에는 조작을 막는다
+
     private sprite: GameObjects.Image;
     private glow: GameObjects.Image;
     private keys: Keys;
 
+    private now = 0;
     private lastGroundedAt = -Infinity;
     private lastJumpPressedAt = -Infinity;
+    private lastOnPlatformAt = -Infinity;
+    private dropUntil = -Infinity;
+    private climbing: LadderDef | null = null;
     private wasOnGround = false;
     private landSquash = 0;
     private facing = 1;
@@ -57,7 +68,7 @@ export class Player
             .setDepth(24);
 
         this.keys = scene.input.keyboard!.addKeys({
-            left: 'LEFT', right: 'RIGHT', up: 'UP', space: 'SPACE', alt: 'ALT'
+            left: 'LEFT', right: 'RIGHT', up: 'UP', down: 'DOWN', space: 'SPACE', alt: 'ALT'
         }) as Keys;
 
         // 물리 계산이 끝난 뒤(postupdate)에 그림 위치를 맞춰야 한 프레임 늦게 따라오지 않는다
@@ -70,9 +81,26 @@ export class Player
         return this.hitbox.x;
     }
 
+    get bottom ()
+    {
+        return this.hitbox.y + HITBOX_H / 2;
+    }
+
     get onGround ()
     {
         return this.body.blocked.down || this.body.touching.down;
+    }
+
+    // 사다리를 타는 중이거나 ↓ + 점프로 내려가는 중이면 발판을 통과한다
+    get passThrough ()
+    {
+        return this.climbing !== null || this.now < this.dropUntil;
+    }
+
+    // 발판 충돌 콜백에서 호출: 지금 발판(땅이 아닌) 위에 서 있다는 표시
+    markOnPlatform ()
+    {
+        this.lastOnPlatformAt = this.now;
     }
 
     // ↑ 키를 이번 프레임에 눌렀는지 (상호작용용)
@@ -81,9 +109,30 @@ export class Player
         return Input.Keyboard.JustDown(this.keys.up);
     }
 
+    // 발 위치(feetY)를 기준으로 순간이동
+    teleport (x: number, feetY: number)
+    {
+        this.stopClimbing();
+        this.body.reset(x, feetY - HITBOX_H / 2 - 1);
+    }
+
     update (time: number)
     {
-        const { left, right, space, alt } = this.keys;
+        this.now = time;
+
+        if (this.locked)
+        {
+            this.body.setAccelerationX(0);
+            return;
+        }
+
+        if (this.climbing)
+        {
+            this.updateClimbing(this.climbing);
+            return;
+        }
+
+        const { left, right, up, down, space, alt } = this.keys;
         const onGround = this.onGround;
 
         // 좌우 이동: 가속도로 움직이고, 키를 떼면 마찰(drag)로 멈춘다
@@ -103,6 +152,21 @@ export class Player
             this.body.setAccelerationX(0);
         }
 
+        // 사다리 잡기: 사다리 옆에서 ↑, 사다리 꼭대기에 서서 ↓
+        const ladder = this.ladders.find(l =>
+            Math.abs(this.x - l.x) < LADDER_GRAB_RANGE && this.bottom >= l.top - 12 && this.bottom <= l.bottom + 2);
+
+        if (ladder)
+        {
+            const belowTop = this.bottom > ladder.top + 6;
+            const standingOnTop = onGround && Math.abs(this.bottom - ladder.top) < 10;
+            if ((up.isDown && belowTop) || (down.isDown && standingOnTop))
+            {
+                this.startClimbing(ladder);
+                return;
+            }
+        }
+
         // 점프: 코요테 타임 + 점프 버퍼
         if (onGround)
         {
@@ -110,7 +174,16 @@ export class Player
         }
         if (Input.Keyboard.JustDown(space) || Input.Keyboard.JustDown(alt))
         {
-            this.lastJumpPressedAt = time;
+            const onPlatform = time - this.lastOnPlatformAt < 80;
+            if (down.isDown && onGround && onPlatform)
+            {
+                // ↓ + 점프: 발판 아래로 내려가기
+                this.dropUntil = time + DROP_THROUGH_MS;
+            }
+            else
+            {
+                this.lastJumpPressedAt = time;
+            }
         }
 
         const canJump = time - this.lastGroundedAt <= COYOTE_MS;
@@ -130,14 +203,63 @@ export class Player
         }
     }
 
-    // 그림 연출: 숨쉬기, 달릴 때 통통 튀기, 점프할 때 늘어나기, 착지할 때 눌리기
+    private startClimbing (ladder: LadderDef)
+    {
+        this.climbing = ladder;
+        this.body.setAllowGravity(false);
+        this.body.setAcceleration(0, 0);
+        // 물리 계산 뒤에 위치가 덮어써지지 않도록 body 기준으로 사다리 가운데에 맞춘다
+        this.body.reset(ladder.x, this.hitbox.y);
+    }
+
+    private stopClimbing ()
+    {
+        this.climbing = null;
+        this.body.setAllowGravity(true);
+    }
+
+    private updateClimbing (ladder: LadderDef)
+    {
+        const { left, right, up, down, space, alt } = this.keys;
+
+        const vy = up.isDown ? -CLIMB_SPEED : down.isDown ? CLIMB_SPEED : 0;
+        this.body.setVelocity(0, vy);
+
+        // 사다리에서 옆으로 점프해서 내리기
+        const jumped = Input.Keyboard.JustDown(space) || Input.Keyboard.JustDown(alt);
+        const dir = left.isDown ? -1 : right.isDown ? 1 : 0;
+        if (jumped && dir !== 0)
+        {
+            this.stopClimbing();
+            this.facing = dir;
+            this.body.setVelocity(dir * MAX_SPEED * 0.8, -JUMP_VELOCITY * 0.6);
+            return;
+        }
+
+        // 꼭대기에 닿으면 위 발판에 올려 준다
+        if (vy < 0 && this.bottom <= ladder.top)
+        {
+            this.stopClimbing();
+            this.body.reset(ladder.x, ladder.top - HITBOX_H / 2 - 1);
+            return;
+        }
+
+        // 바닥에 닿으면 내려 준다
+        if (vy > 0 && this.bottom >= ladder.bottom - 1)
+        {
+            this.stopClimbing();
+            this.body.reset(ladder.x, ladder.bottom - HITBOX_H / 2 - 1);
+        }
+    }
+
+    // 그림 연출: 숨쉬기, 달릴 때 통통 튀기, 점프할 때 늘어나기, 착지할 때 눌리기, 사다리 탈 때 흔들기
     private syncVisual (time: number, delta: number)
     {
         const vx = this.body.velocity.x;
         const vy = this.body.velocity.y;
         const onGround = this.onGround;
 
-        if (onGround && !this.wasOnGround)
+        if (onGround && !this.wasOnGround && !this.climbing)
         {
             this.landSquash = 1;
         }
@@ -149,7 +271,11 @@ export class Player
         let offsetY = 0;
         let rotation = 0;
 
-        if (onGround)
+        if (this.climbing)
+        {
+            rotation = Math.sin(this.hitbox.y * 0.06) * 0.1;
+        }
+        else if (onGround)
         {
             if (Math.abs(vx) > 20)
             {
@@ -173,7 +299,7 @@ export class Player
         sy *= 1 - 0.22 * this.landSquash;
         sx *= 1 + 0.18 * this.landSquash;
 
-        const footY = this.hitbox.y + HITBOX_H / 2;
+        const footY = this.bottom;
         this.sprite
             .setPosition(this.hitbox.x, footY + offsetY)
             .setScale(sx * 1.1, sy * 1.1)
