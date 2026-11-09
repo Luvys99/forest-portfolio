@@ -6,8 +6,7 @@ const MAX_SPEED = 260;
 const GROUND_ACCEL = 2600;
 const AIR_ACCEL = 1600;
 const DRAG = 2400;
-const JUMP_VELOCITY = 640;
-const JUMP_CUT_VELOCITY = 260;   // 점프 키를 일찍 떼면 이 속도로 줄여서 낮게 뛴다
+const JUMP_VELOCITY = 640;       // 메이플처럼 키를 얼마나 누르든 항상 같은 높이로 뛴다
 const COYOTE_MS = 90;            // 발판에서 막 떨어진 직후에도 점프 허용
 const JUMP_BUFFER_MS = 120;      // 착지 직전에 누른 점프도 기억해 뒀다가 실행
 const CLIMB_SPEED = 220;
@@ -74,6 +73,13 @@ export class Player
         // 물리 계산이 끝난 뒤(postupdate)에 그림 위치를 맞춰야 한 프레임 늦게 따라오지 않는다
         scene.events.on('postupdate', this.syncVisual, this);
         scene.events.once('shutdown', () => scene.events.off('postupdate', this.syncVisual, this));
+
+        // Alt는 브라우저 메뉴 단축키라서, 떼는 순간 키보드 입력이 브라우저 메뉴로 넘어갈 수 있다 (Windows).
+        // Phaser는 보조 키(Alt 등)가 눌린 이벤트의 기본 동작을 막지 않으므로, Phaser가 Alt를 처리할 때 직접 막는다.
+        // (window에 따로 리스너를 달면 Phaser보다 먼저 실행될 수 있고, 그러면 Phaser가 이벤트를 무시한다)
+        const blockDefault = (_key: Input.Keyboard.Key, event: KeyboardEvent) => event.preventDefault();
+        this.keys.alt.on('down', blockDefault);
+        this.keys.alt.on('up', blockDefault);
     }
 
     get x ()
@@ -193,13 +199,6 @@ export class Player
             this.body.setVelocityY(-JUMP_VELOCITY);
             this.lastGroundedAt = -Infinity;
             this.lastJumpPressedAt = -Infinity;
-        }
-
-        // 점프 키를 일찍 떼면 낮게 뛴다
-        const holdingJump = space.isDown || alt.isDown;
-        if (!holdingJump && this.body.velocity.y < -JUMP_CUT_VELOCITY)
-        {
-            this.body.setVelocityY(-JUMP_CUT_VELOCITY);
         }
     }
 
