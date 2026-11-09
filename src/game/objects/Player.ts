@@ -17,7 +17,14 @@ const DROP_THROUGH_MS = 250;     // ↓ + 점프로 발판 아래로 내려갈 �
 const HITBOX_W = 34;
 const HITBOX_H = 46;
 
-type Keys = Record<'left' | 'right' | 'up' | 'down' | 'space' | 'alt', Input.Keyboard.Key>;
+type Keys = Record<'left' | 'right' | 'up' | 'down', Input.Keyboard.Key>;
+
+// 점프 키는 keyCode가 아니라 키보드의 물리적 위치(event.code)로 확인한다.
+// Mac에서 한글 입력 상태일 때 브라우저가 keyCode를 229로 보내는 경우가 있어서,
+// keyCode로 키를 구분하는 Phaser의 키 객체로는 Option(Alt)을 놓칠 수 있다.
+const JUMP_CODES = [ 'Space', 'AltLeft', 'AltRight' ];
+
+const isJumpKey = (event: KeyboardEvent) => JUMP_CODES.includes(event.code) || event.key === 'Alt' || event.key === ' ';
 
 // 플레이어 = 물리 판정용 히트박스(Zone) + 보이는 그림(Image)
 // 그림을 늘리고 줄이는 연출이 물리 판정 크기에 영향을 주지 않도록 둘을 나눴다.
@@ -33,6 +40,8 @@ export class Player
     private sprite: GameObjects.Image;
     private glow: GameObjects.Image;
     private keys: Keys;
+    private jumpKeysHeld = new Set<string>();
+    private jumpPressed = false;
 
     private now = 0;
     private lastGroundedAt = -Infinity;
@@ -67,19 +76,65 @@ export class Player
             .setDepth(24);
 
         this.keys = scene.input.keyboard!.addKeys({
-            left: 'LEFT', right: 'RIGHT', up: 'UP', down: 'DOWN', space: 'SPACE', alt: 'ALT'
+            left: 'LEFT', right: 'RIGHT', up: 'UP', down: 'DOWN'
         }) as Keys;
 
         // 물리 계산이 끝난 뒤(postupdate)에 그림 위치를 맞춰야 한 프레임 늦게 따라오지 않는다
         scene.events.on('postupdate', this.syncVisual, this);
-        scene.events.once('shutdown', () => scene.events.off('postupdate', this.syncVisual, this));
 
-        // Alt는 브라우저 메뉴 단축키라서, 떼는 순간 키보드 입력이 브라우저 메뉴로 넘어갈 수 있다 (Windows).
-        // Phaser는 보조 키(Alt 등)가 눌린 이벤트의 기본 동작을 막지 않으므로, Phaser가 Alt를 처리할 때 직접 막는다.
-        // (window에 따로 리스너를 달면 Phaser보다 먼저 실행될 수 있고, 그러면 Phaser가 이벤트를 무시한다)
-        const blockDefault = (_key: Input.Keyboard.Key, event: KeyboardEvent) => event.preventDefault();
-        this.keys.alt.on('down', blockDefault);
-        this.keys.alt.on('up', blockDefault);
+        // 점프 키(Space, Alt/Option)는 브라우저 이벤트를 직접 받는다.
+        // Alt는 브라우저 메뉴 단축키라서, 떼는 순간 키보드 입력이 브라우저 메뉴로 넘어갈 수 있으므로 (Windows) 기본 동작도 막는다.
+        const onKeyDown = (event: KeyboardEvent) =>
+        {
+            if (!isJumpKey(event))
+            {
+                return;
+            }
+            event.preventDefault();
+
+            // 누르고 있는 동안 반복해서 들어오는 keydown은 새 점프로 치지 않는다
+            if (!event.repeat && !this.jumpKeysHeld.has(event.code))
+            {
+                this.jumpPressed = true;
+            }
+            this.jumpKeysHeld.add(event.code);
+        };
+        const onKeyUp = (event: KeyboardEvent) =>
+        {
+            if (!isJumpKey(event))
+            {
+                return;
+            }
+            event.preventDefault();
+            this.jumpKeysHeld.delete(event.code);
+        };
+        // 다른 창으로 전환하면 keyup을 못 받으므로 눌린 키 기록을 비운다
+        const onBlur = () => this.jumpKeysHeld.clear();
+
+        window.addEventListener('keydown', onKeyDown);
+        window.addEventListener('keyup', onKeyUp);
+        window.addEventListener('blur', onBlur);
+
+        // 씬이 끝나거나 게임이 지워질 때 리스너를 꼭 정리한다
+        // (React 개발 모드는 게임을 만들었다 지우고 다시 만들어서, 정리하지 않으면 이전 리스너가 남는다)
+        const cleanup = () =>
+        {
+            scene.events.off('postupdate', this.syncVisual, this);
+            window.removeEventListener('keydown', onKeyDown);
+            window.removeEventListener('keyup', onKeyUp);
+            window.removeEventListener('blur', onBlur);
+        };
+        scene.events.once('shutdown', cleanup);
+        scene.events.once('destroy', cleanup);
+        scene.game.events.once('destroy', cleanup);
+    }
+
+    // 이번 프레임에 점프 키를 새로 눌렀는지 (한 번 확인하면 지운다)
+    private consumeJump ()
+    {
+        const pressed = this.jumpPressed;
+        this.jumpPressed = false;
+        return pressed;
     }
 
     get x ()
@@ -129,6 +184,7 @@ export class Player
         if (this.locked)
         {
             this.body.setAccelerationX(0);
+            this.consumeJump();
             return;
         }
 
@@ -138,7 +194,7 @@ export class Player
             return;
         }
 
-        const { left, right, up, down, space, alt } = this.keys;
+        const { left, right, up, down } = this.keys;
         const onGround = this.onGround;
 
         // 좌우 이동: 가속도로 움직이고, 키를 떼면 마찰(drag)로 멈춘다
@@ -178,7 +234,7 @@ export class Player
         {
             this.lastGroundedAt = time;
         }
-        if (Input.Keyboard.JustDown(space) || Input.Keyboard.JustDown(alt))
+        if (this.consumeJump())
         {
             const onPlatform = time - this.lastOnPlatformAt < 80;
             if (down.isDown && onGround && onPlatform)
@@ -219,13 +275,13 @@ export class Player
 
     private updateClimbing (ladder: LadderDef)
     {
-        const { left, right, up, down, space, alt } = this.keys;
+        const { left, right, up, down } = this.keys;
 
         const vy = up.isDown ? -CLIMB_SPEED : down.isDown ? CLIMB_SPEED : 0;
         this.body.setVelocity(0, vy);
 
         // 사다리에서 옆으로 점프해서 내리기
-        const jumped = Input.Keyboard.JustDown(space) || Input.Keyboard.JustDown(alt);
+        const jumped = this.consumeJump();
         const dir = left.isDown ? -1 : right.isDown ? 1 : 0;
         if (jumped && dir !== 0)
         {
