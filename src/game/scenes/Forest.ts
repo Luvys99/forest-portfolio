@@ -10,6 +10,7 @@ import {
     drawFog, drawGlow, drawGround, drawPlant, drawRay, drawSky, drawTreeLayer, drawVignette, drawVine, TreeLayerOptions
 } from '../world/background-textures';
 import { drawBigTree, drawBranchPlatform, drawLadder, drawOrb, drawPortal, LADDER_W, PLATFORM_TOP } from '../world/tree-textures';
+import { Project, PROJECTS_KEY } from '../data/projects';
 
 // 엘로딘 느낌의 숲
 // 이미지 에셋 없이 캔버스로 텍스처를 그려서 레이어(패럴랙스) + 빛 + 파티클로 분위기를 낸다.
@@ -39,6 +40,11 @@ export class Forest extends Scene
     constructor ()
     {
         super('Forest');
+    }
+
+    preload ()
+    {
+        this.load.json(PROJECTS_KEY, 'projects.json');
     }
 
     create ()
@@ -91,8 +97,8 @@ export class Forest extends Scene
         this.createGlowPlants();
 
         // 6. 프로젝트 구슬과 소개
-        PROJECT_SPOTS.forEach(spot => this.createSpot(spot, 0xffd34d));
-        this.createSpot(ABOUT_SPOT, 0x8dffe0);
+        this.createProjectSpots();
+        this.createSpot(ABOUT_SPOT, '소개', 'GitHub · 블로그 · 연락처', 0x8dffe0, () => EventBus.emit('open-about'));
 
         // 7. 반딧불, 떨어지는 황금 꽃잎
         this.createParticles();
@@ -368,8 +374,27 @@ export class Forest extends Scene
         });
     }
 
-    // 프로젝트 구슬 (이름은 항상 보이고, 가까이 가면 "↑ 자세히 보기")
-    private createSpot (spot: SpotDef, tint: number)
+    // projects.json의 내용을 같은 id의 구슬 위치에 놓는다
+    private createProjectSpots ()
+    {
+        const projects: Project[] = this.cache.json.get(PROJECTS_KEY) ?? [];
+
+        PROJECT_SPOTS.forEach(spot =>
+        {
+            const project = projects.find(p => p.id === spot.id);
+            if (!project)
+            {
+                console.warn(`projects.json에 '${spot.id}' 프로젝트가 없습니다`);
+                return;
+            }
+
+            // React 쪽에서 이 이벤트를 받아 상세 팝업을 띄울 예정
+            this.createSpot(spot, project.title, project.subtitle, 0xffd34d, () => EventBus.emit('open-project', project));
+        });
+    }
+
+    // 구슬 (이름은 항상 보이고, 가까이 가면 "↑ 자세히 보기")
+    private createSpot (spot: SpotDef, title: string, subtitle: string, tint: number, open: () => void)
     {
         const orbY = spot.y - 70;
 
@@ -394,20 +419,19 @@ export class Forest extends Scene
             ease: 'Sine.easeInOut'
         });
 
-        this.add.text(spot.x, orbY - 62, spot.title, {
+        this.add.text(spot.x, orbY - 62, title, {
             fontFamily: 'sans-serif', fontSize: '20px', fontStyle: 'bold', color: '#fff6d6',
             stroke: '#06141e', strokeThickness: 5
         }).setOrigin(0.5).setDepth(30);
 
-        this.add.text(spot.x, orbY - 38, spot.subtitle, {
+        this.add.text(spot.x, orbY - 38, subtitle, {
             fontFamily: 'sans-serif', fontSize: '14px', color: '#cfeee6',
             stroke: '#06141e', strokeThickness: 4
         }).setOrigin(0.5).setDepth(30);
 
         this.addInteractable(spot.x, spot.y, '↑  자세히 보기', orbY - 92, () =>
         {
-            // React 쪽에서 이 이벤트를 받아 상세 팝업을 띄울 예정
-            EventBus.emit('open-project', spot.id);
+            open();
             this.tweens.add({ targets: orb, scale: { from: 1.5, to: 1 }, duration: 400, ease: 'Back.easeOut' });
         });
     }
