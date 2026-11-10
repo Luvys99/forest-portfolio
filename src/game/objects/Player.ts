@@ -84,9 +84,13 @@ export class Player
 
         // 점프 키(Space, Alt/Option)는 브라우저 이벤트를 직접 받는다.
         // Alt는 브라우저 메뉴 단축키라서, 떼는 순간 키보드 입력이 브라우저 메뉴로 넘어갈 수 있으므로 (Windows) 기본 동작도 막는다.
+        // 모달 버튼이나 링크에 포커스가 있을 때는 Space가 그 버튼을 누르도록 놔둔다
+        const isUiTarget = (event: KeyboardEvent) =>
+            event.target instanceof Element && event.target.closest('button, a, input, textarea') !== null;
+
         const onKeyDown = (event: KeyboardEvent) =>
         {
-            if (!isJumpKey(event))
+            if (!isJumpKey(event) || isUiTarget(event))
             {
                 return;
             }
@@ -101,7 +105,7 @@ export class Player
         };
         const onKeyUp = (event: KeyboardEvent) =>
         {
-            if (!isJumpKey(event))
+            if (!isJumpKey(event) || isUiTarget(event))
             {
                 return;
             }

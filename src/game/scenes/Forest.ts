@@ -36,6 +36,7 @@ export class Forest extends Scene
     private interactables: Interactable[] = [];
     private player!: Player;
     private teleporting = false;
+    private modalOpen = false;
 
     constructor ()
     {
@@ -119,6 +120,11 @@ export class Forest extends Scene
             () => !this.player.passThrough && this.player.body.velocity.y >= 0
         );
 
+        // React 모달이 닫히면 조작을 다시 푼다
+        const onModalClosed = () => this.setModalOpen(false);
+        EventBus.on('modal-closed', onModalClosed);
+        this.events.once('shutdown', () => EventBus.off('modal-closed', onModalClosed));
+
         cam.startFollow(this.player.hitbox, true, 0.08, 0.08);
         cam.setDeadzone(160, 160);
 
@@ -160,7 +166,7 @@ export class Forest extends Scene
         let nearest: Interactable | null = null;
         let nearestDist = INTERACT_RANGE;
 
-        if (this.player.onGround && !this.teleporting)
+        if (this.player.onGround && !this.teleporting && !this.modalOpen)
         {
             for (const item of this.interactables)
             {
@@ -352,6 +358,16 @@ export class Forest extends Scene
     }
 
     // 화면을 어둡게 했다가 다른 포탈 위치에서 다시 밝힌다
+    // 모달이 열려 있는 동안 캐릭터 조작과 Phaser 키 입력을 멈춘다
+    private setModalOpen (open: boolean)
+    {
+        this.modalOpen = open;
+        this.player.locked = open;
+        this.input.keyboard!.enabled = !open;
+        // 모달을 보는 동안 눌렀던 키가 닫힌 뒤에 눌린 상태로 남지 않게 한다
+        this.input.keyboard!.resetKeys();
+    }
+
     private teleport (x: number, feetY: number)
     {
         if (this.teleporting)
@@ -388,8 +404,12 @@ export class Forest extends Scene
                 return;
             }
 
-            // React 쪽에서 이 이벤트를 받아 상세 팝업을 띄울 예정
-            this.createSpot(spot, project.title, project.subtitle, 0xffd34d, () => EventBus.emit('open-project', project));
+            // React(App.tsx)가 이 이벤트를 받아 상세 팝업을 띄운다
+            this.createSpot(spot, project.title, project.subtitle, 0xffd34d, () =>
+            {
+                this.setModalOpen(true);
+                EventBus.emit('open-project', project);
+            });
         });
     }
 
