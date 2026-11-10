@@ -12,6 +12,10 @@ const JUMP_BUFFER_MS = 120;      // 착지 직전에 누른 점프도 기억해 
 const CLIMB_SPEED = 220;
 const LADDER_GRAB_RANGE = 22;    // 사다리 가운데에서 이 거리 안이면 잡을 수 있다
 const DROP_THROUGH_MS = 250;     // ↓ + 점프로 발판 아래로 내려갈 때 통과 시간
+const KNOCKBACK_X = 320;         // 맞았을 때 튕겨 나가는 속도
+const KNOCKBACK_Y = 380;
+const STUN_MS = 380;             // 튕겨 나가는 동안은 조작할 수 없다
+const INVINCIBLE_MS = 1300;      // 맞은 뒤 잠깐은 다시 맞지 않는다 (깜빡임)
 
 // 히트박스 크기 (그림과 별개)
 const HITBOX_W = 34;
@@ -52,6 +56,8 @@ export class Player
     private wasOnGround = false;
     private landSquash = 0;
     private facing = 1;
+    private stunUntil = -Infinity;
+    private invincibleUntil = -Infinity;
 
     constructor (scene: Scene, x: number, y: number)
     {
@@ -174,6 +180,27 @@ export class Player
         return Input.Keyboard.JustDown(this.keys.up);
     }
 
+    get invincible ()
+    {
+        return this.now < this.invincibleUntil;
+    }
+
+    // 맞으면 맞은 반대쪽(dir)으로 튕겨 나간다. 체력은 없고, 구름에서 떨어지는 것이 벌이다
+    knockback (dir: number)
+    {
+        if (this.invincible)
+        {
+            return;
+        }
+
+        this.stopClimbing();
+        this.body.setVelocity(dir * KNOCKBACK_X, -KNOCKBACK_Y);
+        // 튕겨 나가는 동안은 마찰을 꺼야 옆으로 밀려난다
+        this.body.setDragX(0);
+        this.stunUntil = this.now + STUN_MS;
+        this.invincibleUntil = this.now + INVINCIBLE_MS;
+    }
+
     // 발 위치(feetY)를 기준으로 순간이동
     teleport (x: number, feetY: number)
     {
@@ -185,12 +212,13 @@ export class Player
     {
         this.now = time;
 
-        if (this.locked)
+        if (this.locked || time < this.stunUntil)
         {
             this.body.setAccelerationX(0);
             this.consumeJump();
             return;
         }
+        this.body.setDragX(DRAG);
 
         if (this.climbing)
         {
@@ -366,6 +394,10 @@ export class Player
             .setFlipX(this.facing < 0);
 
         this.glow.setPosition(this.hitbox.x, footY - 28 + offsetY);
+
+        // 무적 시간 동안 깜빡인다
+        const blink = this.invincible && Math.floor(time / 90) % 2 === 0;
+        this.sprite.setAlpha(blink ? 0.3 : 1);
     }
 
     // 숲의 정령 (임시 캐릭터)

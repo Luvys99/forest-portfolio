@@ -4,8 +4,9 @@ import { Player } from '../objects/Player';
 import { VIEW_H, VIEW_W } from '../world/layout';
 import { CLOUDS, CloudDef, GOAL, SKY_GROUND_Y, SKY_H, SKY_PORTALS, SKY_START, SKY_W } from '../world/sky-layout';
 import {
-    CLOUD_TOP, createSkyPortalTextures, drawCloudBand, drawCloudPlatform, drawLeafFloor, drawMoon, drawNightSky, drawStars
+    CLOUD_TOP, createSkyPortalTextures, drawCloudBand, drawCloudPlatform, drawLeafFloor, drawMeteor, drawMoon, drawNightSky, drawStars
 } from '../world/sky-textures';
+import { formatTime, loadBest, saveBest } from '../world/sky-record';
 import { makeTexture } from '../world/textures';
 import { Interactions } from '../world/interactions';
 import { addOneWayPlatform, addPlatformCollider } from '../world/platforms';
@@ -13,43 +14,19 @@ import { addPortal } from '../world/portal';
 import { fadeToScene } from '../world/scene-transition';
 
 // 숲 위 밤하늘 점프맵
-// 구름을 밟고 달까지 올라간다. 클리어 시간을 재고, 최고 기록은 브라우저에 저장한다 (서버 없음)
+// 구름을 밟고 달까지 올라간다. 떨어지는 별똥별에 맞으면 튕겨 나간다.
+// 클리어 시간을 재고, 최고 기록은 브라우저에 저장한다 (서버 없음)
 
-const BEST_KEY = 'forest-portfolio:sky-best';
+// 별똥별: 타이머가 도는 동안 화면 위쪽에서 떨어진다
+const METEOR_GAP_MS = [ 1300, 2500 ];
+const METEOR_HIT_X = 26;
+const METEOR_HIT_Y = 30;
 
-// 브라우저 저장소는 사생활 보호 모드 등에서 막혀 있을 수 있어서 실패해도 게임은 계속된다
-function loadBest (): number | null
+interface Meteor
 {
-    try
-    {
-        const value = Number(localStorage.getItem(BEST_KEY));
-        return value > 0 ? value : null;
-    }
-    catch
-    {
-        return null;
-    }
-}
-
-function saveBest (ms: number)
-{
-    try
-    {
-        localStorage.setItem(BEST_KEY, String(ms));
-    }
-    catch
-    {
-        // 저장이 안 돼도 이번 판 기록은 화면에 보여 준다
-    }
-}
-
-// 83456 → "1:23.45"
-function formatTime (ms: number)
-{
-    const total = ms / 1000;
-    const min = Math.floor(total / 60);
-    const sec = (total % 60).toFixed(2).padStart(5, '0');
-    return `${min}:${sec}`;
+    img: GameObjects.Image;
+    vx: number;
+    vy: number;
 }
 
 export class Sky extends Scene
@@ -64,6 +41,9 @@ export class Sky extends Scene
     private clearedMs: number | null = null;
     private timerText!: GameObjects.Text;
 
+    private meteors: Meteor[] = [];
+    private nextMeteorAt = 0;
+
     constructor ()
     {
         super('Sky');
@@ -76,6 +56,8 @@ export class Sky extends Scene
         this.leaving = false;
         this.startedAt = null;
         this.clearedMs = null;
+        this.meteors = [];
+        this.nextMeteorAt = 0;
     }
 
     create ()
@@ -125,7 +107,7 @@ export class Sky extends Scene
 
         // 6. 안내 + 타이머
         this.add.image(0, 0, 'vignette').setOrigin(0).setScrollFactor(0).setDepth(50);
-        this.add.text(24, 20, '구름을 밟고 달까지 올라가 보세요  ·  떨어져도 아래 구름에 걸려요', {
+        this.add.text(24, 20, '구름을 밟고 달까지 올라가 보세요  ·  별똥별을 조심하세요  ·  떨어져도 아래 쉼터 구름에 걸려요', {
             fontFamily: 'sans-serif', fontSize: '15px', color: '#dcd8ff'
         }).setScrollFactor(0).setAlpha(0.75).setDepth(60);
 
@@ -140,17 +122,91 @@ export class Sky extends Scene
         EventBus.emit('current-scene-ready', this);
     }
 
-    update (time: number)
+    update (time: number, delta: number)
     {
         this.player.update(time);
         this.interactions.update(this.player, !this.leaving);
         this.updateTimer();
+        this.updateMeteors(time, delta / 1000);
 
-        const scrollY = this.cameras.main.scrollY;
+        const { scrollX, scrollY } = this.cameras.main;
         for (const layer of this.layers)
         {
+            layer.sprite.tilePositionX = scrollX * layer.factor;
             layer.sprite.tilePositionY = scrollY * layer.factor;
         }
+    }
+
+    // 타이머가 도는 동안만 떨어진다 (시작 바닥이나 클리어 후에는 쉬게 한다)
+    private updateMeteors (time: number, dt: number)
+    {
+        const running = this.startedAt !== null && this.clearedMs === null && !this.leaving;
+        const view = this.cameras.main.worldView;
+
+        if (running && time >= this.nextMeteorAt)
+        {
+            this.spawnMeteor(view);
+            const [ min, max ] = METEOR_GAP_MS;
+            this.nextMeteorAt = time + min + Math.random() * (max - min);
+        }
+
+        const playerY = this.player.bottom - 23;
+
+        this.meteors = this.meteors.filter(meteor =>
+        {
+            const { img } = meteor;
+            img.x += meteor.vx * dt;
+            img.y += meteor.vy * dt;
+
+            const hit = !this.player.invincible
+                && Math.abs(img.x - this.player.x) < METEOR_HIT_X
+                && Math.abs(img.y - playerY) < METEOR_HIT_Y;
+
+            if (hit)
+            {
+                // 별똥별 반대쪽으로 튕겨 나간다
+                const dir = Math.sign(this.player.x - img.x) || Math.sign(meteor.vx) || 1;
+                this.player.knockback(dir);
+                this.cameras.main.shake(160, 0.006);
+                this.burst(img.x, img.y, 14);
+            }
+
+            if (hit || img.y > view.bottom + 80)
+            {
+                img.destroy();
+                return false;
+            }
+            return true;
+        });
+    }
+
+    private spawnMeteor (view: Phaser.Geom.Rectangle)
+    {
+        const vx = (Math.random() < 0.5 ? -1 : 1) * (60 + Math.random() * 90);
+        const vy = 280 + Math.random() * 80;
+        const x = view.x + 120 + Math.random() * (view.width - 240);
+        const y = view.y - 40;
+
+        // 텍스처의 머리가 오른쪽을 보고 있으므로 날아가는 방향으로 돌린다
+        const img = this.add.image(x, y, 'meteor')
+            .setOrigin(120 / 140, 0.5)
+            .setRotation(Math.atan2(vy, vx))
+            .setBlendMode(BlendModes.ADD)
+            .setDepth(35);
+
+        this.meteors.push({ img, vx, vy });
+    }
+
+    private burst (x: number, y: number, quantity: number)
+    {
+        this.add.particles(x, y, 'glow-dot', {
+            tint: [ 0xffe9a8, 0xe6dcff, 0x9fd8ff ],
+            speed: { min: 80, max: 260 },
+            scale: { start: 0.35, end: 0 },
+            lifespan: 700,
+            emitting: false,
+            blendMode: 'ADD'
+        }).setDepth(40).explode(quantity);
     }
 
     private updateTimer ()
@@ -196,6 +252,13 @@ export class Sky extends Scene
     private clear (ms: number)
     {
         this.clearedMs = ms;
+
+        // 남은 별똥별은 사라진다
+        for (const { img } of this.meteors)
+        {
+            this.tweens.add({ targets: img, alpha: 0, duration: 300, onComplete: () => img.destroy() });
+        }
+        this.meteors = [];
 
         const best: number | null = this.timerText.getData('best');
         const isNewBest = best === null || ms < best;
@@ -292,6 +355,7 @@ export class Sky extends Scene
         makeTexture(this, 'cloud-band-far', VIEW_W, 900, ctx => drawCloudBand(ctx, VIEW_W, 900, '120,110,200', 71));
         makeTexture(this, 'cloud-band-near', VIEW_W, 1100, ctx => drawCloudBand(ctx, VIEW_W, 1100, '170,160,230', 73));
         makeTexture(this, 'moon', 320, 320, drawMoon);
+        makeTexture(this, 'meteor', 140, 40, drawMeteor);
         makeTexture(this, 'leaf-floor', SKY_W, 140, ctx => drawLeafFloor(ctx, SKY_W, 140));
         // glow-dot, vignette는 숲에서 만든 텍스처를 같이 쓴다 (점프맵은 숲을 거쳐서만 들어온다)
         createSkyPortalTextures(this);

@@ -18,6 +18,7 @@ import { addOneWayPlatform, addPlatformCollider } from '../world/platforms';
 import { addPortal } from '../world/portal';
 import { fadeToScene } from '../world/scene-transition';
 import { createSkyPortalTextures } from '../world/sky-textures';
+import { formatTime, loadBest } from '../world/sky-record';
 
 // 엘로딘 느낌의 숲
 // 이미지 에셋 없이 캔버스로 텍스처를 그려서 레이어(패럴랙스) + 빛 + 파티클로 분위기를 낸다.
@@ -297,8 +298,20 @@ export class Forest extends Scene
 
         // 나무 꼭대기 → 밤하늘 점프맵 (보랏빛으로 다른 맵이라는 걸 보여 준다)
         const { x, y } = PORTALS.sky;
-        const promptY = addPortal(this, x, y, { texture: 'portal-sky', glow: 'glow-sky', particleTints: [ 0xe6dcff, 0x9fd8ff ], seed: 2 });
-        this.interactions.add(x, y, '↑  밤하늘로 (점프맵)', promptY, () =>
+        addPortal(this, x, y, { texture: 'portal-sky', glow: 'glow-sky', particleTints: [ 0xe6dcff, 0x9fd8ff ], seed: 2 });
+
+        // 포탈 위 안내 (항상 보인다). 내 최고 기록이 있으면 같이 보여 준다
+        const best = loadBest();
+        this.add.text(x, y - 250, '밤하늘 점프맵', {
+            fontFamily: 'sans-serif', fontSize: '20px', fontStyle: 'bold', color: '#ece6ff',
+            stroke: '#0b0a2a', strokeThickness: 5
+        }).setOrigin(0.5).setDepth(30);
+        this.add.text(x, y - 226, best ? `내 최고 기록  ${formatTime(best)}` : '구름을 밟고 달까지', {
+            fontFamily: 'sans-serif', fontSize: '14px', color: '#cfd8ff',
+            stroke: '#0b0a2a', strokeThickness: 4
+        }).setOrigin(0.5).setDepth(30);
+
+        this.interactions.add(x, y, '↑  들어가기', y - 285, () =>
         {
             this.teleporting = true;
             this.player.locked = true;
