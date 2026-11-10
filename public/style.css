@@ -216,3 +216,8 @@ body {
         font-size: 24px;
     }
 }
+
+.modal-text {
+    margin: 0 0 10px;
+    font-size: 15px;
+}

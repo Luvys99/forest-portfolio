@@ -11,6 +11,7 @@ import {
 } from '../world/background-textures';
 import { drawBigTree, drawBranchPlatform, drawLadder, drawOrb, drawPortal, LADDER_W, PLATFORM_TOP } from '../world/tree-textures';
 import { Project, PROJECTS_KEY } from '../data/projects';
+import { About, ABOUT_KEY } from '../data/about';
 
 // 엘로딘 느낌의 숲
 // 이미지 에셋 없이 캔버스로 텍스처를 그려서 레이어(패럴랙스) + 빛 + 파티클로 분위기를 낸다.
@@ -46,6 +47,7 @@ export class Forest extends Scene
     preload ()
     {
         this.load.json(PROJECTS_KEY, 'projects.json');
+        this.load.json(ABOUT_KEY, 'about.json');
     }
 
     create ()
@@ -99,7 +101,7 @@ export class Forest extends Scene
 
         // 6. 프로젝트 구슬과 소개
         this.createProjectSpots();
-        this.createSpot(ABOUT_SPOT, '소개', 'GitHub · 블로그 · 연락처', 0x8dffe0, () => EventBus.emit('open-about'));
+        this.createAboutSpot();
 
         // 7. 반딧불, 떨어지는 황금 꽃잎
         this.createParticles();
@@ -410,6 +412,22 @@ export class Forest extends Scene
                 this.setModalOpen(true);
                 EventBus.emit('open-project', project);
             });
+        });
+    }
+
+    private createAboutSpot ()
+    {
+        const about: About | undefined = this.cache.json.get(ABOUT_KEY);
+        if (!about)
+        {
+            console.warn('about.json을 불러오지 못했습니다');
+            return;
+        }
+
+        this.createSpot(ABOUT_SPOT, '소개', 'GitHub · 블로그 · 연락처', 0x8dffe0, () =>
+        {
+            this.setModalOpen(true);
+            EventBus.emit('open-about', about);
         });
     }
 
