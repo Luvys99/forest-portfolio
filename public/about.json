@@ -1,0 +1,11 @@
+{
+    "name": "0Log",
+    "headline": "모험하듯 개발한 부분들을 기록하는 개발자입니다.",
+    "intro": [],
+    "interests": ["프론트엔드", "백엔드"],
+    "links": [
+        { "label": "GitHub", "url": "https://github.com/Luvys99" },
+        { "label": "티스토리 블로그", "url": "https://mineboy123.tistory.com" },
+        { "label": "이메일", "url": "mailto:mineboy123@naver.com" }
+    ]
+}
