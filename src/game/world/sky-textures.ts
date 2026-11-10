@@ -196,3 +196,40 @@ export function drawMeteor (ctx: Ctx)
     ctx.arc(headX, cy, 7, 0, Math.PI * 2);
     ctx.fill();
 }
+
+// 방명록 · 순위 표지판 (별빛 나는 작은 판)
+export function drawSign (ctx: Ctx)
+{
+    const w = 120;
+    const h = 130;
+
+    radialGlow(ctx, w / 2, 46, 60, '190,170,255', 0.35);
+
+    // 기둥
+    ctx.fillStyle = '#3d3a78';
+    ctx.fillRect(w / 2 - 4, 60, 8, h - 60);
+
+    // 판
+    const g = ctx.createLinearGradient(0, 14, 0, 78);
+    g.addColorStop(0, '#5b56b0');
+    g.addColorStop(1, '#2c2966');
+    ctx.fillStyle = g;
+    ctx.strokeStyle = 'rgba(220,210,255,0.9)';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.roundRect(14, 14, w - 28, 64, 10);
+    ctx.fill();
+    ctx.stroke();
+
+    // 별 무늬
+    ctx.fillStyle = '#ffe9a8';
+    ctx.beginPath();
+    for (let i = 0; i < 10; i++)
+    {
+        const r = i % 2 === 0 ? 13 : 5.5;
+        const a = -Math.PI / 2 + (i * Math.PI) / 5;
+        ctx.lineTo(w / 2 + Math.cos(a) * r, 46 + Math.sin(a) * r);
+    }
+    ctx.closePath();
+    ctx.fill();
+}

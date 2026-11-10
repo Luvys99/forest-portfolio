@@ -221,3 +221,164 @@ body {
     margin: 0 0 10px;
     font-size: 15px;
 }
+
+/* ---------------------------------------------------------------- 방명록 */
+
+.modal-wide {
+    width: min(780px, 100%);
+}
+
+.guestbook-form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 20px;
+    padding: 14px;
+    border: 1px solid rgba(255, 211, 77, 0.3);
+    border-radius: 12px;
+    background: rgba(255, 211, 77, 0.06);
+
+    input {
+        flex: 1 1 140px;
+        min-width: 0;
+        padding: 9px 12px;
+        border: 1px solid rgba(141, 255, 224, 0.3);
+        border-radius: 8px;
+        background: rgba(2, 10, 16, 0.5);
+        color: #fff6d6;
+        font: inherit;
+        font-size: 14px;
+
+        &:focus {
+            border-color: #ffd34d;
+            outline: none;
+        }
+    }
+
+    input:nth-of-type(2) {
+        flex-basis: 240px;
+    }
+
+    button {
+        padding: 9px 18px;
+        border: none;
+        border-radius: 8px;
+        background: #ffd34d;
+        color: #0a2430;
+        font: inherit;
+        font-size: 14px;
+        font-weight: bold;
+        cursor: pointer;
+
+        &:disabled {
+            opacity: 0.5;
+            cursor: default;
+        }
+    }
+}
+
+.guestbook-clear {
+    flex-basis: 100%;
+    margin: 0 0 2px;
+    font-size: 14px;
+
+    strong {
+        color: #ffe9a8;
+    }
+}
+
+.guestbook-error {
+    flex-basis: 100%;
+    margin: 4px 0 0;
+    color: #ff9f9f;
+    font-size: 14px;
+}
+
+.guestbook-done {
+    margin: 0 0 16px;
+    color: #8dffe0;
+}
+
+.guestbook-empty {
+    color: #9fc4ba;
+    font-size: 14px;
+}
+
+.guestbook-columns {
+    display: grid;
+    grid-template-columns: 1fr 1.3fr;
+    gap: 24px;
+
+    h3 {
+        margin: 0 0 8px;
+        color: #ffd34d;
+        font-size: 15px;
+    }
+}
+
+.guestbook-ranking,
+.guestbook-recent {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-size: 14px;
+
+    li.is-mine {
+        border-radius: 6px;
+        background: rgba(255, 211, 77, 0.14);
+    }
+}
+
+.guestbook-ranking li {
+    display: grid;
+    grid-template-columns: 24px 1fr auto;
+    gap: 8px;
+    padding: 5px 8px;
+
+    .rank {
+        color: #8dffe0;
+    }
+
+    .name {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .time {
+        color: #ffe9a8;
+        font-variant-numeric: tabular-nums;
+    }
+}
+
+.guestbook-recent {
+    max-height: 320px;
+    overflow-y: auto;
+
+    li {
+        padding: 7px 8px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .name {
+        margin-right: 8px;
+        color: #fff6d6;
+        font-weight: bold;
+    }
+
+    .meta {
+        color: #9fc4ba;
+        font-size: 12px;
+    }
+
+    p {
+        margin: 2px 0 0;
+        overflow-wrap: anywhere;
+    }
+}
+
+@media (max-width: 640px) {
+    .guestbook-columns {
+        grid-template-columns: 1fr;
+    }
+}
