@@ -4,11 +4,13 @@ interface Props
 {
     titleId: string;
     onClose: () => void;
+    // 내용이 많은 팝업 (방명록)은 넓게
+    wide?: boolean;
     children: ReactNode;
 }
 
 // 상세 팝업과 소개 팝업이 같이 쓰는 틀 (배경, 닫기 버튼, ESC)
-export function Modal ({ titleId, onClose, children }: Props)
+export function Modal ({ titleId, onClose, wide = false, children }: Props)
 {
     const closeButton = useRef<HTMLButtonElement>(null);
 
@@ -32,7 +34,7 @@ export function Modal ({ titleId, onClose, children }: Props)
         // 바깥(어두운 배경)을 누르면 닫힌다. 안쪽 클릭은 막는다
         <div className="modal-backdrop" onClick={onClose}>
             <div
-                className="modal"
+                className={wide ? 'modal modal-wide' : 'modal'}
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby={titleId}

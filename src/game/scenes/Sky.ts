@@ -4,7 +4,7 @@ import { Player } from '../objects/Player';
 import { VIEW_H, VIEW_W } from '../world/layout';
 import { CLOUDS, CloudDef, GOAL, SKY_GROUND_Y, SKY_H, SKY_PORTALS, SKY_START, SKY_W } from '../world/sky-layout';
 import {
-    CLOUD_TOP, createSkyPortalTextures, drawCloudBand, drawCloudPlatform, drawLeafFloor, drawMeteor, drawMoon, drawNightSky, drawStars
+    CLOUD_TOP, createSkyPortalTextures, drawCloudBand, drawCloudPlatform, drawLeafFloor, drawMeteor, drawMoon, drawNightSky, drawSign, drawStars
 } from '../world/sky-textures';
 import { formatTime, loadBest, saveBest } from '../world/sky-record';
 import { makeTexture } from '../world/textures';
@@ -12,6 +12,7 @@ import { Interactions } from '../world/interactions';
 import { addOneWayPlatform, addPlatformCollider } from '../world/platforms';
 import { addPortal } from '../world/portal';
 import { fadeToScene } from '../world/scene-transition';
+import { ModalLock } from '../world/modal-lock';
 
 // 숲 위 밤하늘 점프맵
 // 구름을 밟고 달까지 올라간다. 떨어지는 별똥별에 맞으면 튕겨 나간다.
@@ -44,6 +45,10 @@ export class Sky extends Scene
     private meteors: Meteor[] = [];
     private nextMeteorAt = 0;
 
+    private modal!: ModalLock;
+    // 이번 판 클리어 기록 (방명록에 남기면 비운다)
+    private pendingClearMs: number | null = null;
+
     constructor ()
     {
         super('Sky');
@@ -58,6 +63,7 @@ export class Sky extends Scene
         this.clearedMs = null;
         this.meteors = [];
         this.nextMeteorAt = 0;
+        this.pendingClearMs = null;
     }
 
     create ()
@@ -100,12 +106,20 @@ export class Sky extends Scene
         this.physics.add.collider(this.player.hitbox, ground);
         addPlatformCollider(this, this.player, zones);
 
+        // 6. 방명록 · 순위 표지판 (시작 지점, 골인 지점)
+        this.modal = new ModalLock(this, this.player);
+        const onWritten = () => this.pendingClearMs = null;
+        EventBus.on('guestbook-written', onWritten);
+        this.events.once('shutdown', () => EventBus.off('guestbook-written', onWritten));
+        this.createSign(SKY_START.x + 230, SKY_GROUND_Y);
+        this.createSign(GOAL.x - 120, GOAL.y);
+
         cam.startFollow(this.player.hitbox, true, 0.08, 0.1);
         cam.setDeadzone(200, 140);
         cam.centerOn(SKY_START.x, SKY_START.y - 200);
         cam.fadeIn(320, 5, 18, 28);
 
-        // 6. 안내 + 타이머
+        // 7. 안내 + 타이머
         this.add.image(0, 0, 'vignette').setOrigin(0).setScrollFactor(0).setDepth(50);
         this.add.text(24, 20, '구름을 밟고 달까지 올라가 보세요  ·  별똥별을 조심하세요  ·  떨어져도 아래 쉼터 구름에 걸려요', {
             fontFamily: 'sans-serif', fontSize: '15px', color: '#dcd8ff'
@@ -125,7 +139,7 @@ export class Sky extends Scene
     update (time: number, delta: number)
     {
         this.player.update(time);
-        this.interactions.update(this.player, !this.leaving);
+        this.interactions.update(this.player, !this.leaving && !this.modal.isOpen);
         this.updateTimer();
         this.updateMeteors(time, delta / 1000);
 
@@ -278,6 +292,16 @@ export class Sky extends Scene
         this.tweens.add({ targets: banner, scale: 1, alpha: 1, duration: 450, ease: 'Back.easeOut' });
         this.tweens.add({ targets: banner, alpha: 0, delay: 3200, duration: 800 });
 
+        // 축하 연출을 잠깐 보여 준 뒤 방명록을 연다
+        this.pendingClearMs = ms;
+        this.time.delayedCall(1600, () =>
+        {
+            if (!this.leaving && !this.modal.isOpen)
+            {
+                this.openGuestbook();
+            }
+        });
+
         // 달에서 별가루가 터진다
         this.add.particles(GOAL.x, GOAL.y - 40, 'glow-dot', {
             tint: [ 0xffe9a8, 0xe6dcff, 0x9fd8ff ],
@@ -290,6 +314,21 @@ export class Sky extends Scene
             emitting: false,
             blendMode: 'ADD'
         }).setDepth(40).explode(40);
+    }
+
+    private openGuestbook ()
+    {
+        this.modal.open('open-guestbook', { clearMs: this.pendingClearMs });
+    }
+
+    private createSign (x: number, feetY: number)
+    {
+        this.add.image(x, feetY + 4, 'sign').setOrigin(0.5, 1).setDepth(17);
+        this.add.text(x, feetY - 150, '방명록 · 순위', {
+            fontFamily: 'sans-serif', fontSize: '16px', fontStyle: 'bold', color: '#ece6ff',
+            stroke: '#0b0a2a', strokeThickness: 4
+        }).setOrigin(0.5).setDepth(30);
+        this.interactions.add(x, feetY, '↑  보기', feetY - 180, () => this.openGuestbook());
     }
 
     private leave ()
@@ -356,6 +395,7 @@ export class Sky extends Scene
         makeTexture(this, 'cloud-band-near', VIEW_W, 1100, ctx => drawCloudBand(ctx, VIEW_W, 1100, '170,160,230', 73));
         makeTexture(this, 'moon', 320, 320, drawMoon);
         makeTexture(this, 'meteor', 140, 40, drawMeteor);
+        makeTexture(this, 'sign', 120, 130, drawSign);
         makeTexture(this, 'leaf-floor', SKY_W, 140, ctx => drawLeafFloor(ctx, SKY_W, 140));
         // glow-dot, vignette는 숲에서 만든 텍스처를 같이 쓴다 (점프맵은 숲을 거쳐서만 들어온다)
         createSkyPortalTextures(this);

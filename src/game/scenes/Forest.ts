@@ -17,6 +17,7 @@ import { Interactions } from '../world/interactions';
 import { addOneWayPlatform, addPlatformCollider } from '../world/platforms';
 import { addPortal } from '../world/portal';
 import { fadeToScene } from '../world/scene-transition';
+import { ModalLock } from '../world/modal-lock';
 import { createSkyPortalTextures } from '../world/sky-textures';
 import { formatTime, loadBest } from '../world/sky-record';
 
@@ -40,7 +41,7 @@ export class Forest extends Scene
     private interactions: Interactions;
     private player!: Player;
     private teleporting = false;
-    private modalOpen = false;
+    private modal!: ModalLock;
     private from: ForestData['from'];
 
     constructor ()
@@ -56,7 +57,6 @@ export class Forest extends Scene
         this.fogs = [];
         this.interactions = new Interactions(this);
         this.teleporting = false;
-        this.modalOpen = false;
     }
 
     preload ()
@@ -138,10 +138,7 @@ export class Forest extends Scene
         this.physics.add.collider(this.player.hitbox, ground);
         addPlatformCollider(this, this.player, platformZones);
 
-        // React 모달이 닫히면 조작을 다시 푼다
-        const onModalClosed = () => this.setModalOpen(false);
-        EventBus.on('modal-closed', onModalClosed);
-        this.events.once('shutdown', () => EventBus.off('modal-closed', onModalClosed));
+        this.modal = new ModalLock(this, this.player);
 
         cam.startFollow(this.player.hitbox, true, 0.08, 0.08);
         cam.setDeadzone(160, 160);
@@ -166,7 +163,7 @@ export class Forest extends Scene
     update (time: number)
     {
         this.player.update(time);
-        this.interactions.update(this.player, !this.teleporting && !this.modalOpen);
+        this.interactions.update(this.player, !this.teleporting && !this.modal.isOpen);
 
         const cam = this.cameras.main;
 
@@ -320,16 +317,6 @@ export class Forest extends Scene
     }
 
     // 화면을 어둡게 했다가 다른 포탈 위치에서 다시 밝힌다
-    // 모달이 열려 있는 동안 캐릭터 조작과 Phaser 키 입력을 멈춘다
-    private setModalOpen (open: boolean)
-    {
-        this.modalOpen = open;
-        this.player.locked = open;
-        this.input.keyboard!.enabled = !open;
-        // 모달을 보는 동안 눌렀던 키가 닫힌 뒤에 눌린 상태로 남지 않게 한다
-        this.input.keyboard!.resetKeys();
-    }
-
     private teleport (x: number, feetY: number)
     {
         if (this.teleporting)
@@ -369,8 +356,7 @@ export class Forest extends Scene
             // React(App.tsx)가 이 이벤트를 받아 상세 팝업을 띄운다
             this.createSpot(spot, project.title, project.subtitle, 0xffd34d, () =>
             {
-                this.setModalOpen(true);
-                EventBus.emit('open-project', project);
+                this.modal.open('open-project', project);
             });
         });
     }
@@ -386,8 +372,7 @@ export class Forest extends Scene
 
         this.createSpot(ABOUT_SPOT, '소개', 'GitHub · 블로그 · 연락처', 0x8dffe0, () =>
         {
-            this.setModalOpen(true);
-            EventBus.emit('open-about', about);
+            this.modal.open('open-about', about);
         });
     }
 
