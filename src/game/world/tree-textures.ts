@@ -258,7 +258,25 @@ export function drawLadder (ctx: Ctx, h: number)
 }
 
 // 포탈 (타원형 빛)
-export function drawPortal (ctx: Ctx)
+// 포탈 색 (안쪽 빛 3단계, 테두리, 소용돌이). 숫자는 'r,g,b'
+export interface PortalColors
+{
+    core: string;
+    mid: string;
+    edge: string;
+    ring: string;
+    swirl: string;
+}
+
+export const GOLD_PORTAL: PortalColors = {
+    core: '255,255,235',
+    mid: '255,220,110',
+    edge: '255,170,40',
+    ring: '255,230,140',
+    swirl: '255,250,210'
+};
+
+export function drawPortal (ctx: Ctx, colors: PortalColors = GOLD_PORTAL)
 {
     const w = 160;
     const h = 220;
@@ -266,22 +284,22 @@ export function drawPortal (ctx: Ctx)
     const cy = h / 2;
 
     const inner = ctx.createRadialGradient(cx, cy, 4, cx, cy, 80);
-    inner.addColorStop(0, 'rgba(255,255,235,0.95)');
-    inner.addColorStop(0.4, 'rgba(255,220,110,0.75)');
-    inner.addColorStop(1, 'rgba(255,170,40,0)');
+    inner.addColorStop(0, `rgba(${colors.core},0.95)`);
+    inner.addColorStop(0.4, `rgba(${colors.mid},0.75)`);
+    inner.addColorStop(1, `rgba(${colors.edge},0)`);
     ctx.fillStyle = inner;
     ctx.beginPath();
     ctx.ellipse(cx, cy, 62, 92, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    ctx.strokeStyle = 'rgba(255,230,140,0.95)';
+    ctx.strokeStyle = `rgba(${colors.ring},0.95)`;
     ctx.lineWidth = 5;
     ctx.beginPath();
     ctx.ellipse(cx, cy, 62, 92, 0, 0, Math.PI * 2);
     ctx.stroke();
 
     // 소용돌이 무늬
-    ctx.strokeStyle = 'rgba(255,250,210,0.6)';
+    ctx.strokeStyle = `rgba(${colors.swirl},0.6)`;
     ctx.lineWidth = 2.5;
     for (let i = 0; i < 3; i++)
     {

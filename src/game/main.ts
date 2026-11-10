@@ -5,6 +5,7 @@ import { MainMenu } from './scenes/MainMenu';
 import { AUTO, Game, Scale } from 'phaser';
 import { Preloader } from './scenes/Preloader';
 import { Forest } from './scenes/Forest';
+import { Sky } from './scenes/Sky';
 
 //  Find out more information about the Game Config at:
 //  https://docs.phaser.io/api-documentation/typedef/types-core#gameconfig
@@ -31,6 +32,7 @@ const config: Phaser.Types.Core.GameConfig = {
     },
     scene: [
         Forest,
+        Sky,
         Boot,
         Preloader,
         MainMenu,

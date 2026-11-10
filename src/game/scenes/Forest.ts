@@ -12,42 +12,63 @@ import {
 import { drawBigTree, drawBranchPlatform, drawLadder, drawOrb, drawPortal, LADDER_W, PLATFORM_TOP } from '../world/tree-textures';
 import { Project, PROJECTS_KEY } from '../data/projects';
 import { About, ABOUT_KEY } from '../data/about';
+import { makeTexture } from '../world/textures';
+import { Interactions } from '../world/interactions';
+import { addOneWayPlatform, addPlatformCollider } from '../world/platforms';
+import { addPortal } from '../world/portal';
+import { fadeToScene } from '../world/scene-transition';
+import { createSkyPortalTextures } from '../world/sky-textures';
 
 // 엘로딘 느낌의 숲
 // 이미지 에셋 없이 캔버스로 텍스처를 그려서 레이어(패럴랙스) + 빛 + 파티클로 분위기를 낸다.
 
 const MAX_SCROLL_Y = WORLD_H - VIEW_H;
-const INTERACT_RANGE = 70;
 
 type Ctx = CanvasRenderingContext2D;
 
-// ↑ 키로 상호작용할 수 있는 것 (프로젝트 구슬, 포탈, 소개)
-interface Interactable
+// 어디에서 시작하나 (처음 들어올 때는 땅, 점프맵에서 돌아올 때는 나무 꼭대기의 점프맵 포탈 앞)
+export interface ForestData
 {
-    x: number;
-    y: number;
-    prompt: GameObjects.Text;
-    use: () => void;
+    from?: 'sky';
 }
 
 export class Forest extends Scene
 {
     private parallax: { sprite: GameObjects.TileSprite; factor: number; texH: number }[] = [];
     private fogs: { sprite: GameObjects.TileSprite; factor: number; drift: number }[] = [];
-    private interactables: Interactable[] = [];
+    private interactions: Interactions;
     private player!: Player;
     private teleporting = false;
     private modalOpen = false;
+    private from: ForestData['from'];
 
     constructor ()
     {
         super('Forest');
     }
 
+    // 씬은 다시 시작해도 같은 객체를 쓰므로, 이전 판의 상태를 여기서 비운다
+    init (data: ForestData)
+    {
+        this.from = data.from;
+        this.parallax = [];
+        this.fogs = [];
+        this.interactions = new Interactions(this);
+        this.teleporting = false;
+        this.modalOpen = false;
+    }
+
     preload ()
     {
-        this.load.json(PROJECTS_KEY, 'projects.json');
-        this.load.json(ABOUT_KEY, 'about.json');
+        // 점프맵에서 돌아올 때는 이미 불러온 데이터를 그대로 쓴다
+        if (!this.cache.json.exists(PROJECTS_KEY))
+        {
+            this.load.json(PROJECTS_KEY, 'projects.json');
+        }
+        if (!this.cache.json.exists(ABOUT_KEY))
+        {
+            this.load.json(ABOUT_KEY, 'about.json');
+        }
     }
 
     create ()
@@ -110,17 +131,11 @@ export class Forest extends Scene
         const ground = this.add.zone(WORLD_W / 2, GROUND_Y + 50, WORLD_W, 100);
         this.physics.add.existing(ground, true);
 
-        this.player = new Player(this, TREE_X - 900, GROUND_Y - 40);
+        const start = this.from === 'sky' ? PORTALS.sky : { x: TREE_X - 900, y: GROUND_Y };
+        this.player = new Player(this, start.x, start.y - 40);
         this.player.ladders = LADDERS;
         this.physics.add.collider(this.player.hitbox, ground);
-
-        // 발판: 위에서 내려올 때만 밟힌다 (사다리 타는 중이거나 ↓ + 점프 중이면 통과)
-        this.physics.add.collider(
-            this.player.hitbox,
-            platformZones,
-            () => this.player.markOnPlatform(),
-            () => !this.player.passThrough && this.player.body.velocity.y >= 0
-        );
+        addPlatformCollider(this, this.player, platformZones);
 
         // React 모달이 닫히면 조작을 다시 푼다
         const onModalClosed = () => this.setModalOpen(false);
@@ -129,6 +144,11 @@ export class Forest extends Scene
 
         cam.startFollow(this.player.hitbox, true, 0.08, 0.08);
         cam.setDeadzone(160, 160);
+        if (this.from === 'sky')
+        {
+            cam.centerOn(start.x, start.y - 120);
+            cam.fadeIn(320, 5, 18, 28);
+        }
 
         // 9. 비네팅 + 조작 안내
         this.add.image(0, 0, 'vignette').setOrigin(0).setScrollFactor(0).setDepth(50);
@@ -145,7 +165,7 @@ export class Forest extends Scene
     update (time: number)
     {
         this.player.update(time);
-        this.updateInteractions();
+        this.interactions.update(this.player, !this.teleporting && !this.modalOpen);
 
         const cam = this.cameras.main;
 
@@ -160,47 +180,6 @@ export class Forest extends Scene
         {
             fog.sprite.tilePositionX = cam.scrollX * fog.factor + (this.time.now / 1000) * fog.drift;
         }
-    }
-
-    // 가장 가까운 상호작용 대상만 안내를 보여 주고, ↑ 키로 실행
-    private updateInteractions ()
-    {
-        let nearest: Interactable | null = null;
-        let nearestDist = INTERACT_RANGE;
-
-        if (this.player.onGround && !this.teleporting && !this.modalOpen)
-        {
-            for (const item of this.interactables)
-            {
-                const dx = Math.abs(this.player.x - item.x);
-                if (dx < nearestDist && Math.abs(this.player.bottom - item.y) < 30)
-                {
-                    nearest = item;
-                    nearestDist = dx;
-                }
-            }
-        }
-
-        for (const item of this.interactables)
-        {
-            const target = item === nearest ? 1 : 0;
-            item.prompt.setAlpha(item.prompt.alpha + (target - item.prompt.alpha) * 0.2);
-        }
-
-        if (nearest && this.player.justPressedUp())
-        {
-            nearest.use();
-        }
-    }
-
-    private addInteractable (x: number, y: number, promptText: string, promptY: number, use: () => void)
-    {
-        const prompt = this.add.text(x, promptY, promptText, {
-            fontFamily: 'sans-serif', fontSize: '16px', color: '#fff4c4',
-            backgroundColor: 'rgba(10, 30, 40, 0.6)', padding: { x: 10, y: 5 }
-        }).setOrigin(0.5).setDepth(31).setAlpha(0);
-
-        this.interactables.push({ x, y, prompt, use });
     }
 
     private addParallax (key: string, factor: number, depth: number)
@@ -286,14 +265,7 @@ export class Forest extends Scene
                     .setDepth(15);
             }
 
-            // 위쪽 면만 충돌하는 얇은 판정
-            const zone = this.add.zone(p.x1 + w / 2, p.y + 10, w, 20);
-            this.physics.add.existing(zone, true);
-            const body = zone.body as Phaser.Physics.Arcade.StaticBody;
-            body.checkCollision.down = false;
-            body.checkCollision.left = false;
-            body.checkCollision.right = false;
-            zones.push(zone);
+            zones.push(addOneWayPlatform(this, p.x1, p.x2, p.y));
         }
 
         return zones;
@@ -319,43 +291,18 @@ export class Forest extends Scene
 
         portals.forEach(({ from, to, label }, i) =>
         {
-            const cy = from.y - 105;
+            const promptY = addPortal(this, from.x, from.y, { seed: i });
+            this.interactions.add(from.x, from.y, label, promptY, () => this.teleport(to.x, to.y));
+        });
 
-            this.add.image(from.x, cy, 'glow-warm')
-                .setScale(0.9, 1.1)
-                .setBlendMode(BlendModes.ADD)
-                .setAlpha(0.45)
-                .setDepth(17);
-
-            const portal = this.add.image(from.x, cy, 'portal')
-                .setBlendMode(BlendModes.ADD)
-                .setDepth(18);
-
-            this.tweens.add({
-                targets: portal,
-                scaleX: { from: 0.94, to: 1.04 },
-                scaleY: { from: 1.02, to: 0.96 },
-                alpha: { from: 0.8, to: 1 },
-                duration: 1400 + i * 200,
-                yoyo: true,
-                repeat: -1,
-                ease: 'Sine.easeInOut'
-            });
-
-            // 포탈에서 올라가는 빛 알갱이
-            this.add.particles(0, 0, 'glow-dot', {
-                x: { min: from.x - 45, max: from.x + 45 },
-                y: { min: cy + 40, max: cy + 90 },
-                tint: [ 0xfff3a0, 0xffd34d ],
-                scale: { start: 0.25, end: 0 },
-                alpha: { start: 1, end: 0 },
-                speedY: { min: -60, max: -30 },
-                lifespan: 1600,
-                frequency: 90,
-                blendMode: 'ADD'
-            }).setDepth(19);
-
-            this.addInteractable(from.x, from.y, label, cy - 135, () => this.teleport(to.x, to.y));
+        // 나무 꼭대기 → 밤하늘 점프맵 (보랏빛으로 다른 맵이라는 걸 보여 준다)
+        const { x, y } = PORTALS.sky;
+        const promptY = addPortal(this, x, y, { texture: 'portal-sky', glow: 'glow-sky', particleTints: [ 0xe6dcff, 0x9fd8ff ], seed: 2 });
+        this.interactions.add(x, y, '↑  밤하늘로 (점프맵)', promptY, () =>
+        {
+            this.teleporting = true;
+            this.player.locked = true;
+            fadeToScene(this, 'Sky');
         });
     }
 
@@ -467,7 +414,7 @@ export class Forest extends Scene
             stroke: '#06141e', strokeThickness: 4
         }).setOrigin(0.5).setDepth(30);
 
-        this.addInteractable(spot.x, spot.y, '↑  자세히 보기', orbY - 92, () =>
+        this.interactions.add(spot.x, spot.y, '↑  자세히 보기', orbY - 92, () =>
         {
             open();
             this.tweens.add({ targets: orb, scale: { from: 1.5, to: 1 }, duration: 400, ease: 'Back.easeOut' });
@@ -561,6 +508,7 @@ export class Forest extends Scene
         this.makeTexture('big-tree', BIG_TREE_W, BIG_TREE_H, drawBigTree);
         this.makeTexture('portal', 160, 220, drawPortal);
         this.makeTexture('orb', 64, 64, drawOrb);
+        createSkyPortalTextures(this);
 
         this.makeTreeLayer('trees-far', 0.15, { color: '#134a5e', count: 9, minW: 16, maxW: 30, seed: 1 });
         this.makeTreeLayer('trees-mid', 0.35, { color: '#0b3044', count: 6, minW: 28, maxW: 50, seed: 2 });
@@ -576,18 +524,6 @@ export class Forest extends Scene
 
     private makeTexture (key: string, w: number, h: number, draw: (ctx: Ctx) => void)
     {
-        if (this.textures.exists(key))
-        {
-            return;
-        }
-
-        const texture = this.textures.createCanvas(key, w, h);
-        if (!texture)
-        {
-            return;
-        }
-
-        draw(texture.getContext());
-        texture.refresh();
+        makeTexture(this, key, w, h, draw);
     }
 }

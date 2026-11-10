@@ -1,6 +1,6 @@
 // 맵 배치 (좌표는 모두 월드 기준, y는 아래로 갈수록 커진다)
 //
-//                 [위 포탈]  [소개]          ← 나무 꼭대기 (CANOPY_Y)
+//      [점프맵 포탈] [위 포탈]  [소개]       ← 나무 꼭대기 (CANOPY_Y)
 //           ~~~~~~~~ 황금 잎 ~~~~~~~~
 //   [2층 왼쪽]═══╗   줄기   ╔═══[2층 오른쪽]   ← FLOOR_2_Y
 //      사다리     ║         ║     사다리
@@ -74,5 +74,7 @@ export const ABOUT_SPOT: SpotDef = { id: 'about', x: TREE_X + 300, y: CANOPY_Y }
 
 export const PORTALS = {
     bottom: { x: TREE_X, y: GROUND_Y },
-    top: { x: TREE_X - 120, y: CANOPY_Y }
+    top: { x: TREE_X - 120, y: CANOPY_Y },
+    // 밤하늘 점프맵으로 가는 포탈
+    sky: { x: TREE_X - 420, y: CANOPY_Y }
 };
