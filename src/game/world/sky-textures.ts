@@ -169,3 +169,30 @@ export function drawLeafFloor (ctx: Ctx, w: number, h: number)
     }
     ctx.globalAlpha = 1;
 }
+
+// 떨어지는 별똥별 (오른쪽 끝이 머리, 왼쪽으로 꼬리). 날아가는 방향으로 회전시켜 쓴다
+export function drawMeteor (ctx: Ctx)
+{
+    const w = 140;
+    const h = 40;
+    const headX = w - 20;
+    const cy = h / 2;
+
+    const tail = ctx.createLinearGradient(0, 0, headX, 0);
+    tail.addColorStop(0, 'rgba(160,200,255,0)');
+    tail.addColorStop(0.7, 'rgba(200,220,255,0.45)');
+    tail.addColorStop(1, 'rgba(255,240,210,0.9)');
+    ctx.fillStyle = tail;
+    ctx.beginPath();
+    ctx.moveTo(0, cy);
+    ctx.lineTo(headX, cy - 9);
+    ctx.lineTo(headX, cy + 9);
+    ctx.closePath();
+    ctx.fill();
+
+    radialGlow(ctx, headX, cy, 20, '255,230,170', 0.9);
+    ctx.fillStyle = '#fff8e6';
+    ctx.beginPath();
+    ctx.arc(headX, cy, 7, 0, Math.PI * 2);
+    ctx.fill();
+}
