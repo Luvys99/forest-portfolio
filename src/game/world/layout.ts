@@ -58,21 +58,19 @@ export const LADDERS: LadderDef[] = [
 export interface SpotDef
 {
     id: string;
-    title: string;
-    subtitle: string;
     x: number;
     y: number;
 }
 
-// 발판마다 프로젝트 하나 (내용은 나중에 projects.json으로 옮길 예정)
+// 발판마다 프로젝트 구슬 하나 (내용은 public/projects.json에서 같은 id로 찾는다)
 export const PROJECT_SPOTS: SpotDef[] = [
-    { id: 'graduation', title: '졸업 작품', subtitle: 'Reflecxity · AI 음성 통역', x: TREE_X - 400, y: FLOOR_1_Y },
-    { id: 'second', title: '2차 프로젝트', subtitle: 'EFY · 매칭 플랫폼 채팅', x: TREE_X - 400, y: FLOOR_2_Y },
-    { id: 'main', title: '메인 프로젝트', subtitle: '준비 중', x: TREE_X + 400, y: FLOOR_1_Y },
-    { id: 'forest', title: '숲 포트폴리오', subtitle: 'Phaser 4 · React', x: TREE_X + 400, y: FLOOR_2_Y }
+    { id: 'graduation', x: TREE_X - 400, y: FLOOR_1_Y },
+    { id: 'second', x: TREE_X - 400, y: FLOOR_2_Y },
+    { id: 'main', x: TREE_X + 400, y: FLOOR_1_Y },
+    { id: 'forest', x: TREE_X + 400, y: FLOOR_2_Y }
 ];
 
-export const ABOUT_SPOT: SpotDef = { id: 'about', title: '소개', subtitle: 'GitHub · 블로그 · 연락처', x: TREE_X + 300, y: CANOPY_Y };
+export const ABOUT_SPOT: SpotDef = { id: 'about', x: TREE_X + 300, y: CANOPY_Y };
 
 export const PORTALS = {
     bottom: { x: TREE_X, y: GROUND_Y },
