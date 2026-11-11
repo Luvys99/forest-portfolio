@@ -1,9 +1,4 @@
-import { Boot } from './scenes/Boot';
-import { GameOver } from './scenes/GameOver';
-import { Game as MainGame } from './scenes/Game';
-import { MainMenu } from './scenes/MainMenu';
 import { AUTO, Game, Scale } from 'phaser';
-import { Preloader } from './scenes/Preloader';
 import { Forest } from './scenes/Forest';
 import { Sky } from './scenes/Sky';
 
@@ -32,12 +27,7 @@ const config: Phaser.Types.Core.GameConfig = {
     },
     scene: [
         Forest,
-        Sky,
-        Boot,
-        Preloader,
-        MainMenu,
-        MainGame,
-        GameOver
+        Sky
     ]
 };
 

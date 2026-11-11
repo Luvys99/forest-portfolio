@@ -1,80 +1,28 @@
-import { forwardRef, useEffect, useLayoutEffect, useRef } from 'react';
+import { useLayoutEffect, useRef } from 'react';
 import StartGame from './game/main';
-import { EventBus } from './game/EventBus';
 
-export interface IRefPhaserGame
+// React 화면 안에 Phaser 게임을 붙인다.
+// React와 게임은 서로를 직접 부르지 않고 EventBus로만 신호를 주고받는다.
+export function PhaserGame ()
 {
-    game: Phaser.Game | null;
-    scene: Phaser.Scene | null;
-}
-
-interface IProps
-{
-    currentActiveScene?: (scene_instance: Phaser.Scene) => void
-}
-
-export const PhaserGame = forwardRef<IRefPhaserGame, IProps>(function PhaserGame({ currentActiveScene }, ref)
-{
-    const game = useRef<Phaser.Game | null>(null!);
+    const game = useRef<Phaser.Game | null>(null);
 
     useLayoutEffect(() =>
     {
         if (game.current === null)
         {
-
-            game.current = StartGame("game-container");
-
-            if (typeof ref === 'function')
-            {
-                ref({ game: game.current, scene: null });
-            } else if (ref)
-            {
-                ref.current = { game: game.current, scene: null };
-            }
-
+            game.current = StartGame('game-container');
         }
 
+        // React 개발 모드(StrictMode)는 컴포넌트를 만들었다 지우고 다시 만들므로, 지울 때 게임도 정리한다
         return () =>
         {
-            if (game.current)
-            {
-                game.current.destroy(true);
-                if (game.current !== null)
-                {
-                    game.current = null;
-                }
-            }
-        }
-    }, [ref]);
-
-    useEffect(() =>
-    {
-        EventBus.on('current-scene-ready', (scene_instance: Phaser.Scene) =>
-        {
-            if (currentActiveScene && typeof currentActiveScene === 'function')
-            {
-
-                currentActiveScene(scene_instance);
-
-            }
-
-            if (typeof ref === 'function')
-            {
-                ref({ game: game.current, scene: scene_instance });
-            } else if (ref)
-            {
-                ref.current = { game: game.current, scene: scene_instance };
-            }
-            
-        });
-        return () =>
-        {
-            EventBus.removeListener('current-scene-ready');
-        }
-    }, [currentActiveScene, ref]);
+            game.current?.destroy(true);
+            game.current = null;
+        };
+    }, []);
 
     return (
         <div id="game-container"></div>
     );
-
-});
+}

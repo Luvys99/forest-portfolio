@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { IRefPhaserGame, PhaserGame } from './PhaserGame';
+import { useCallback, useEffect, useState } from 'react';
+import { PhaserGame } from './PhaserGame';
 import { EventBus } from './game/EventBus';
 import { Project } from './game/data/projects';
 import { About } from './game/data/about';
@@ -16,7 +16,6 @@ type OpenModal =
 
 function App()
 {
-    const phaserRef = useRef<IRefPhaserGame | null>(null);
     const [modal, setModal] = useState<OpenModal>(null);
 
     // 구슬 앞에서 ↑ → Phaser가 보낸 데이터로 팝업을 연다
@@ -45,7 +44,7 @@ function App()
 
     return (
         <div id="app">
-            <PhaserGame ref={phaserRef} />
+            <PhaserGame />
             {modal?.type === 'project' && <ProjectModal project={modal.project} onClose={close} />}
             {modal?.type === 'about' && <AboutModal about={modal.about} onClose={close} />}
             {modal?.type === 'guestbook' && <GuestbookModal clearMs={modal.clearMs} onClose={close} />}
