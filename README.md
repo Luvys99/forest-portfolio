@@ -1,246 +1,87 @@
-# Phaser React TypeScript Template
+# 🌳 숲 포트폴리오
 
-This is a Phaser project template that uses the React framework and Vite for bundling. It includes a bridge for React to Phaser game communication, hot-reloading for quick development workflow and scripts to generate production-ready builds.
+메이플스토리 엘로딘처럼 빛나는 숲을 **걸어 다니며 프로젝트를 구경하는 2D 포트폴리오**입니다.
+이미지 에셋 없이 배경, 나무, 캐릭터를 모두 **캔버스로 직접 그렸습니다.**
 
-**[This Template is also available as a JavaScript version.](https://github.com/phaserjs/template-react)**
+**👉 [forest-portfolio-pi.vercel.app](https://forest-portfolio-pi.vercel.app)** (PC 키보드 환경 권장)
 
-### Versions
+![숲 포트폴리오 화면](docs/forest.png)
 
-This template has been updated for:
+## 둘러보기
 
-- [Phaser 4](https://github.com/phaserjs/phaser)
-- [React 19.0.0](https://github.com/facebook/react)
-- [Vite 6.3.1](https://github.com/vitejs/vite)
-- [TypeScript 5.7.2](https://github.com/microsoft/TypeScript)
+| 위치 | 내용 |
+| --- | --- |
+| 큰 황금 나무 1층 · 2층 | 프로젝트 구슬 4개 (졸업 작품, 2차 프로젝트, 숲 포트폴리오, 메인 프로젝트). 구슬 앞에서 ↑ → 상세 팝업 |
+| 나무 꼭대기 | 소개 구슬 (GitHub, 블로그, 이메일) |
+| 꼭대기의 보랏빛 포탈 | **밤하늘 점프맵**: 구름을 밟고 달까지. 별똥별을 피하고, 클리어하면 방명록과 순위표에 기록을 남길 수 있습니다 |
 
-![screenshot](screenshot.png)
+## 조작법
 
-## Requirements
+| 키 | 동작 |
+| --- | --- |
+| ← → | 이동 |
+| Space / Alt (Mac: Option) | 점프 |
+| 사다리 앞에서 ↑ ↓ | 사다리 오르기 / 내려가기 |
+| 발판 위에서 ↓ + 점프 | 발판 아래로 내려가기 |
+| 구슬 · 포탈 · 표지판 앞에서 ↑ | 보기 / 이동 |
+| ESC | 팝업 닫기 |
 
-[Node.js](https://nodejs.org) is required to install dependencies and run scripts via `npm`.
+## 기술 스택
 
-## Available Commands
+| 영역 | 기술 |
+| --- | --- |
+| 게임 화면 | Phaser 4 (Arcade 물리) |
+| UI (팝업) | React 19, TypeScript, Vite |
+| 그래픽 | Canvas 2D로 직접 그린 텍스처 + 패럴랙스 + 파티클 (이미지 에셋 없음) |
+| 방명록 · 순위표 | Supabase (PostgreSQL + REST API + RLS) |
+| 배포 | Vercel |
 
-| Command | Description |
-|---------|-------------|
-| `npm install` | Install project dependencies |
-| `npm run dev` | Launch a development web server |
-| `npm run build` | Create a production build in the `dist` folder |
-| `npm run dev-nolog` | Launch a development web server without sending anonymous data (see "About log.js" below) |
-| `npm run build-nolog` | Create a production build in the `dist` folder without sending anonymous data (see "About log.js" below) |
+## 구조
 
-## Writing Code
-
-After cloning the repo, run `npm install` from your project directory. Then, you can start the local development server by running `npm run dev`.
-
-The local development server runs on `http://localhost:8080` by default. Please see the Vite documentation if you wish to change this, or add SSL support.
-
-Once the server is running you can edit any of the files in the `src` folder. Vite will automatically recompile your code and then reload the browser.
-
-## Template Project Structure
-
-We have provided a default project structure to get you started. This is as follows:
-
-| Path                          | Description                                                                 |
-|-------------------------------|-----------------------------------------------------------------------------|
-| `index.html`                  | A basic HTML page to contain the game.                                     |
-| `src`                         | Contains the React client source code.                                     |
-| `src/main.tsx`                | The main **React** entry point. This bootstraps the React application.      |
-| `src/PhaserGame.tsx`          | The React component that initializes the Phaser Game and acts as a bridge between React and Phaser. |
-| `src/vite-env.d.ts`           | Global TypeScript declarations, providing type information.                |
-| `src/App.tsx`                 | The main React component.                                                  |
-| `src/game/EventBus.ts`        | A simple event bus to communicate between React and Phaser.                |
-| `src/game`                    | Contains the game source code.                                             |
-| `src/game/main.tsx`           | The main **game** entry point. This contains the game configuration and starts the game. |
-| `src/game/scenes/`            | The folder where Phaser Scenes are located.                                |
-| `public/style.css`            | Some simple CSS rules to help with page layout.                            |
-| `public/assets`               | Contains the static assets used by the game.                               |
-
-## React Bridge
-
-The `PhaserGame.tsx` component is the bridge between React and Phaser. It initializes the Phaser game and passes events between the two.
-
-To communicate between React and Phaser, you can use the **EventBus.js** file. This is a simple event bus that allows you to emit and listen for events from both React and Phaser.
-
-```js
-// In React
-import { EventBus } from './EventBus';
-
-// Emit an event
-EventBus.emit('event-name', data);
-
-// In Phaser
-// Listen for an event
-EventBus.on('event-name', (data) => {
-    // Do something with the data
-});
+```
+                EventBus (open-project, open-about, open-guestbook, modal-closed)
+   ┌──────────────────────────────┐          ┌──────────────────────────────┐
+   │ Phaser (src/game)            │ ───────▶ │ React (src/components)       │
+   │ Forest 씬 · Sky 씬            │ ◀─────── │ 프로젝트 · 소개 · 방명록 팝업    │
+   │ 캐릭터, 물리, 카메라, 포탈       │          │                              │
+   └──────────────────────────────┘          └──────────────┬───────────────┘
+            │ preload                                        │ fetch (REST)
+   public/projects.json, about.json                Supabase sky_records 테이블
 ```
 
-In addition to this, the `PhaserGame` component exposes the Phaser game instance along with the most recently active Phaser Scene using React forwardRef.
+| 폴더 | 내용 |
+| --- | --- |
+| `src/game/scenes` | `Forest`(숲), `Sky`(점프맵) |
+| `src/game/objects` | `Player`: 이동, 점프, 사다리, 넉백 |
+| `src/game/world` | 맵 배치, 캔버스 텍스처, 포탈·발판·상호작용·조작 잠금 등 두 맵이 같이 쓰는 코드 |
+| `src/components` | React 팝업 (공용 `Modal` 틀 + 프로젝트 / 소개 / 방명록) |
+| `src/lib/skyRecords.ts` | Supabase REST 호출 (순위, 최근 방명록, 쓰기) |
+| `public/*.json` | 프로젝트, 소개 내용 (코드 수정 없이 내용만 바꿀 수 있게 분리) |
+| `supabase/sky_records.sql` | 방명록 테이블과 RLS 정책 |
 
-Once exposed, you can access them like any regular react reference.
+## 설계에서 고민한 것
 
-## Phaser Scene Handling
+- **Phaser와 React는 EventBus로만 대화한다.** 서로를 import하지 않아서 게임과 UI를 따로 고칠 수 있다. 팝업이 열린 동안에는 캐릭터 조작과 Phaser 키 입력을 잠그고, 닫히면 다시 푼다.
+- **콘텐츠는 JSON, 위치는 코드.** 프로젝트 소개는 `projects.json`, 맵 좌표는 `layout.ts`에 두고 id로만 연결했다. 내용을 고치면 구슬 이름과 팝업에 함께 반영된다.
+- **서버 없이 방명록.** Supabase가 테이블마다 만들어 주는 REST API를 `fetch`로 부른다. publishable 키는 브라우저에 공개되는 키라서, 권한은 **RLS**로 제한했다 (읽기와 쓰기만, 수정·삭제 불가). 이름 길이, 기록 범위 같은 규칙은 화면뿐 아니라 DB `check` 제약에도 둔다.
+- **씬을 다시 시작할 때 상태 초기화.** Phaser는 씬 객체를 재사용하므로, 숲 → 점프맵 → 숲으로 돌아올 때 이전 상태가 남지 않게 `init()`에서 비운다.
+- **조작감.** 코요테 타임, 점프 버퍼, 히트박스와 그림 분리, 위에서만 밟히는 발판. Mac 한글 입력 상태에서 Option 키가 인식되지 않는 문제는 `keyCode` 대신 `event.code`로 해결했다.
 
-In Phaser, the Scene is the lifeblood of your game. It is where you sprites, game logic and all of the Phaser systems live. You can also have multiple scenes running at the same time. This template provides a way to obtain the current active scene from React.
-
-You can get the current Phaser Scene from the component event `"current-active-scene"`. In order to do this, you need to emit the event `"current-scene-ready"` from the Phaser Scene class. This event should be emitted when the scene is ready to be used. You can see this done in all of the Scenes in our template.
-
-**Important**: When you add a new Scene to your game, make sure you expose to React by emitting the `"current-scene-ready"` event via the `EventBus`, like this:
-
-
-```ts
-class MyScene extends Phaser.Scene
-{
-    constructor ()
-    {
-        super('MyScene');
-    }
-
-    create ()
-    {
-        // Your Game Objects and logic here
-
-        // At the end of create method:
-        EventBus.emit('current-scene-ready', this);
-    }
-}
-```
-
-You don't have to emit this event if you don't need to access the specific scene from React. Also, you don't have to emit it at the end of `create`, you can emit it at any point. For example, should your Scene be waiting for a network request or API call to complete, it could emit the event once that data is ready.
-
-### React Component Example
-
-Here's an example of how to access Phaser data for use in a React Component:
-
-```ts
-import { useRef } from 'react';
-import { IRefPhaserGame } from "./game/PhaserGame";
-
-// In a parent component
-const ReactComponent = () => {
-
-    const phaserRef = useRef<IRefPhaserGame>(); // you can access to this ref from phaserRef.current
-
-    const onCurrentActiveScene = (scene: Phaser.Scene) => {
-    
-        // This is invoked
-
-    }
-
-    return (
-        ...
-        <PhaserGame ref={phaserRef} currentActiveScene={onCurrentActiveScene} />
-        ...
-    );
-
-}
-```
-
-In the code above, you can get a reference to the current Phaser Game instance and the current Scene by creating a reference with `useRef()` and assign to PhaserGame component.
-
-From this state reference, the game instance is available via `phaserRef.current.game` and the most recently active Scene via `phaserRef.current.scene`.
-
-The `onCurrentActiveScene` callback will also be invoked whenever the the Phaser Scene changes, as long as you emit the event via the EventBus, as outlined above.
-
-## Handling Assets
-
-Vite supports loading assets via JavaScript module `import` statements.
-
-This template provides support for both embedding assets and also loading them from a static folder. To embed an asset, you can import it at the top of the JavaScript file you are using it in:
-
-```js
-import logoImg from './assets/logo.png'
-```
-
-To load static files such as audio files, videos, etc place them into the `public/assets` folder. Then you can use this path in the Loader calls within Phaser:
-
-```js
-preload ()
-{
-    //  This is an example of an imported bundled image.
-    //  Remember to import it at the top of this file
-    this.load.image('logo', logoImg);
-
-    //  This is an example of loading a static image
-    //  from the public/assets folder:
-    this.load.image('background', 'assets/bg.png');
-}
-```
-
-When you issue the `npm run build` command, all static assets are automatically copied to the `dist/assets` folder.
-
-## Deploying to Production
-
-After you run the `npm run build` command, your code will be built into a single bundle and saved to the `dist` folder, along with any other assets your project imported, or stored in the public assets folder.
-
-In order to deploy your game, you will need to upload *all* of the contents of the `dist` folder to a public facing web server.
-
-## Customizing the Template
-
-### Vite
-
-If you want to customize your build, such as adding plugin (i.e. for loading CSS or fonts), you can modify the `vite/config.*.mjs` file for cross-project changes, or you can modify and/or create new configuration files and target them in specific npm tasks inside of `package.json`. Please see the [Vite documentation](https://vitejs.dev/) for more information.
-
-## About log.js
-
-If you inspect our node scripts you will see there is a file called `log.js`. This file makes a single silent API call to a domain called `gryzor.co`. This domain is owned by Phaser Studio Inc. The domain name is a homage to one of our favorite retro games.
-
-We send the following 3 pieces of data to this API: The name of the template being used (vue, react, etc). If the build was 'dev' or 'prod' and finally the version of Phaser being used.
-
-At no point is any personal data collected or sent. We don't know about your project files, device, browser or anything else. Feel free to inspect the `log.js` file to confirm this.
-
-Why do we do this? Because being open source means we have no visible metrics about which of our templates are being used. We work hard to maintain a large and diverse set of templates for Phaser developers and this is our small anonymous way to determine if that work is actually paying off, or not. In short, it helps us ensure we're building the tools for you.
-
-However, if you don't want to send any data, you can use these commands instead:
-
-Dev:
+## 직접 실행하기
 
 ```bash
-npm run dev-nolog
+npm install
+cp .env.example .env.local   # Supabase 주소와 publishable 키 입력 (없으면 방명록만 비활성)
+npm run dev                  # http://localhost:8080
+npm run build                # dist/ 에 배포용 파일 생성
 ```
 
-Build:
+방명록을 쓰려면 Supabase 프로젝트를 만들고 `supabase/sky_records.sql`을 SQL Editor에서 실행합니다.
 
-```bash
-npm run build-nolog
-```
+## 작업 방식
 
-Or, to disable the log entirely, simply delete the file `log.js` and remove the call to it in the `scripts` section of `package.json`:
+기능마다 **이슈 → 브랜치 → PR**로 진행했습니다. 진행 기록은 [Issues](https://github.com/Luvys99/forest-portfolio/issues?q=is%3Aissue)와 [Pull Requests](https://github.com/Luvys99/forest-portfolio/pulls?q=is%3Apr)에 있습니다.
 
-Before:
+## 출처
 
-```json
-"scripts": {
-    "dev": "node log.js dev & dev-template-script",
-    "build": "node log.js build & build-template-script"
-},
-```
-
-After:
-
-```json
-"scripts": {
-    "dev": "dev-template-script",
-    "build": "build-template-script"
-},
-```
-
-Either of these will stop `log.js` from running. If you do decide to do this, please could you at least join our Discord and tell us which template you're using! Or send us a quick email. Either will be super-helpful, thank you.
-
-## Join the Phaser Community!
-
-We love to see what developers like you create with Phaser! It really motivates us to keep improving. So please join our community and show-off your work 😄
-
-**Visit:** The [Phaser website](https://phaser.io) and follow on [Phaser Twitter](https://twitter.com/phaser_)<br />
-**Play:** Some of the amazing games [#madewithphaser](https://twitter.com/search?q=%23madewithphaser&src=typed_query&f=live)<br />
-**Learn:** [API Docs](https://newdocs.phaser.io), [Support Forum](https://phaser.discourse.group/) and [StackOverflow](https://stackoverflow.com/questions/tagged/phaser-framework)<br />
-**Discord:** Join us on [Discord](https://discord.gg/phaser)<br />
-**Code:** 2000+ [Examples](https://labs.phaser.io)<br />
-**Read:** The [Phaser World](https://phaser.io/community/newsletter) Newsletter<br />
-
-Created by [Phaser Studio](mailto:support@phaser.io). Powered by coffee, anime, pixels and love.
-
-The Phaser logo and characters are &copy; 2011 - 2025 Phaser Studio Inc.
-
-All rights reserved.
+- [Phaser React TypeScript Template](https://github.com/phaserjs/template-react-ts) (MIT)로 시작했고, 템플릿 예제 코드는 정리했습니다.
