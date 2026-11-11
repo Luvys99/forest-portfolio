@@ -25,6 +25,7 @@
 | 발판 위에서 ↓ + 점프 | 발판 아래로 내려가기 |
 | 구슬 · 포탈 · 표지판 앞에서 ↑ | 보기 / 이동 |
 | ESC | 팝업 닫기 |
+| 오른쪽 아래 🔊 | 배경음악 켜기 / 끄기 (처음엔 꺼짐) |
 
 ## 기술 스택
 
@@ -85,3 +86,4 @@ npm run build                # dist/ 에 배포용 파일 생성
 ## 출처
 
 - [Phaser React TypeScript Template](https://github.com/phaserjs/template-react-ts) (MIT)로 시작했고, 템플릿 예제 코드는 정리했습니다.
+- 배경음악: **반딧불이 숲** · [브금대통령](https://www.bgmpresident.com) (화면 오른쪽 아래 🔊 버튼으로 켜고 끕니다)

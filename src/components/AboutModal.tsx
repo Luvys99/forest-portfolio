@@ -1,5 +1,6 @@
 import { About } from '../game/data/about';
 import { Modal } from './Modal';
+import { BGM } from './BgmToggle';
 
 interface Props
 {
@@ -38,6 +39,7 @@ export function AboutModal ({ about, onClose }: Props)
                     })}
                 </div>
             )}
+            <p className="modal-credit">배경음악: {BGM.title} · {BGM.credit}</p>
         </Modal>
     );
 }

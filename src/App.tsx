@@ -6,6 +6,7 @@ import { About } from './game/data/about';
 import { ProjectModal } from './components/ProjectModal';
 import { AboutModal } from './components/AboutModal';
 import { GuestbookModal } from './components/GuestbookModal';
+import { BgmToggle } from './components/BgmToggle';
 
 // 지금 열려 있는 팝업 (한 번에 하나만)
 type OpenModal =
@@ -45,6 +46,7 @@ function App()
     return (
         <div id="app">
             <PhaserGame />
+            <BgmToggle />
             {modal?.type === 'project' && <ProjectModal project={modal.project} onClose={close} />}
             {modal?.type === 'about' && <AboutModal about={modal.about} onClose={close} />}
             {modal?.type === 'guestbook' && <GuestbookModal clearMs={modal.clearMs} onClose={close} />}
