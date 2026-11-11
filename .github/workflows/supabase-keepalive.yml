@@ -1,0 +1,23 @@
+# Supabase 무료 플랜은 한동안 사용이 없으면 프로젝트를 일시정지한다.
+# 일주일에 한 번 방명록 목록을 읽어서(데이터 변경 없음) 사용 중으로 유지한다.
+name: Supabase keepalive
+
+on:
+  schedule:
+    - cron: '0 0 * * 1'   # 매주 월요일 09:00 (한국 시간)
+  workflow_dispatch:       # Actions 탭에서 직접 실행
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 방명록 목록 1건 읽기
+        env:
+          SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+        run: |
+          status=$(curl -s -o /dev/null -w '%{http_code}' \
+            "$SUPABASE_URL/rest/v1/sky_records?select=id&limit=1" \
+            -H "apikey: $SUPABASE_KEY")
+          echo "Supabase 응답: $status"
+          test "$status" = "200"
