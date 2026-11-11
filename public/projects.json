@@ -53,10 +53,12 @@
         "details": [
             "이미지 에셋 없이 캔버스로 직접 그린 배경 + 패럴랙스 + 파티클",
             "발판, 사다리, 포탈이 있는 큰 황금 나무 맵",
-            "프로젝트 내용은 projects.json으로 관리"
+            "프로젝트 내용은 projects.json으로 관리",
+            "밤하늘 점프맵 + 방명록·순위표 (Supabase REST + RLS)"
         ],
         "links": {
-            "github": "https://github.com/Luvys99/forest-portfolio"
+            "github": "https://github.com/Luvys99/forest-portfolio",
+            "demo": "https://forest-portfolio-pi.vercel.app"
         }
     }
 ]
