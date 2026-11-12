@@ -4,7 +4,7 @@ import { MouseEvent, useCallback, useEffect, useRef, useState } from 'react';
 export const BGM = {
     src: 'audio/forest-night.mp3',
     title: '숲의 밤',
-    credit: 'Suno로 제작'
+    credit: 'Claude로 제작'
 };
 
 const STORAGE_KEY = 'forest-portfolio:bgm-on';

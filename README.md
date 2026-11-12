@@ -86,4 +86,4 @@ npm run build                # dist/ 에 배포용 파일 생성
 ## 출처
 
 - [Phaser React TypeScript Template](https://github.com/phaserjs/template-react-ts) (MIT)로 시작했고, 템플릿 예제 코드는 정리했습니다.
-- 배경음악: **숲의 밤** · [Suno](https://suno.com)로 직접 제작 (화면 오른쪽 아래 🔊 버튼으로 켜고 끕니다)
+- 배경음악: **숲의 밤** · [Claude](https://claude.ai)로 직접 제작 (화면 오른쪽 아래 🔊 버튼으로 켜고 끕니다)
