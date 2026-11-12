@@ -2,9 +2,9 @@ import { MouseEvent, useCallback, useEffect, useRef, useState } from 'react';
 
 // 배경음악 정보 (출처 표기는 소개 팝업과 README에도 같이 보여 준다)
 export const BGM = {
-    src: 'audio/firefly-forest.m4a',
-    title: '반딧불이 숲',
-    credit: '브금대통령'
+    src: 'audio/forest-night.mp3',
+    title: '숲의 밤',
+    credit: 'Suno로 제작'
 };
 
 const STORAGE_KEY = 'forest-portfolio:bgm-on';
