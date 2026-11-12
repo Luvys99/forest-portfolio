@@ -11,16 +11,17 @@ const STORAGE_KEY = 'forest-portfolio:bgm-on';
 const VOLUME = 0.4;
 const FADE_MS = 800;
 
+// 기본은 켜짐. 방문자가 직접 끈 적이 있을 때만 꺼진 상태로 시작한다
 // 브라우저 저장소는 막혀 있을 수 있어서 실패해도 동작은 그대로 둔다
 function loadOn ()
 {
     try
     {
-        return localStorage.getItem(STORAGE_KEY) === 'true';
+        return localStorage.getItem(STORAGE_KEY) !== 'false';
     }
     catch
     {
-        return false;
+        return true;
     }
 }
 
@@ -36,8 +37,8 @@ function saveOn (on: boolean)
     }
 }
 
-// 화면 구석의 🔊 버튼. 처음에는 꺼진 상태로 시작한다.
-// 브라우저는 사용자가 한 번이라도 누르거나 클릭하기 전에는 소리 자동 재생을 막는다.
+// 화면 구석의 🔊 버튼. 들어오자마자 재생을 시도한다.
+// 브라우저가 자동 재생을 막으면 첫 키 입력이나 클릭 때 바로 재생을 시작한다.
 export function BgmToggle ()
 {
     const audio = useRef<HTMLAudioElement>(null);
@@ -98,7 +99,7 @@ export function BgmToggle ()
         fadeTo(0, () => el.pause());
     }, [ fadeTo ]);
 
-    // 켜짐 상태를 따른다. 지난 방문에 켜 두었다면 첫 키 입력이나 클릭 때 재생을 시작한다
+    // 켜짐 상태를 따른다. 자동 재생이 막히면 첫 키 입력이나 클릭 때 재생을 시작한다
     useEffect(() =>
     {
         if (!on)
@@ -147,7 +148,7 @@ export function BgmToggle ()
 
     return (
         <>
-            <audio ref={audio} src={BGM.src} loop preload="none" />
+            <audio ref={audio} src={BGM.src} loop preload="auto" />
             <button
                 className="bgm-toggle"
                 onClick={toggle}
