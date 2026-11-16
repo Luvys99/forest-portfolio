@@ -16,7 +16,7 @@ import { makeTexture } from '../world/textures';
 import { Interactions } from '../world/interactions';
 import { addOneWayPlatform } from '../world/platforms';
 import { spawnPlayer } from '../world/player-setup';
-import { Multiplayer } from '../world/multiplayer';
+import { joinScene, Multiplayer } from '../world/multiplayer';
 import { addPortal } from '../world/portal';
 import { fadeToScene } from '../world/scene-transition';
 import { ModalLock } from '../world/modal-lock';
@@ -135,9 +135,8 @@ export class Forest extends Scene
         this.createParticles();
 
         // 8. 플레이어 + 충돌 + 카메라
-        const start = this.from === 'sky' ? PORTALS.sky : { x: TREE_X - 900, y: GROUND_Y };
         const spawned = spawnPlayer(this, {
-            worldW: WORLD_W, groundY: GROUND_Y, feet: start, platforms: platformZones, ladders: LADDERS,
+            worldW: WORLD_W, groundY: GROUND_Y, feet: this.startFeet, platforms: platformZones, ladders: LADDERS,
             follow: { lerpY: 0.08, deadzone: [ 160, 160 ] }
         });
         this.player = spawned.player;
@@ -148,7 +147,7 @@ export class Forest extends Scene
         }
         if (this.from === 'sky')
         {
-            cam.centerOn(start.x, start.y - 120);
+            cam.centerOn(this.startFeet.x, this.startFeet.y - 120);
             cam.fadeIn(320, 5, 18, 28);
         }
 
@@ -323,7 +322,14 @@ export class Forest extends Scene
 
     // ---------------------------------------------------------------- 멀티플레이
 
-    // 저장된 이름·색이 있으면 바로 들어가고, 없으면 입장 팝업을 띄운다
+    // 처음 들어올 때는 땅, 점프맵에서 돌아올 때는 나무 꼭대기의 점프맵 포탈 앞
+    private get startFeet ()
+    {
+        return this.from === 'sky' ? PORTALS.sky : { x: TREE_X - 900, y: GROUND_Y };
+    }
+
+    // 저장된 이름·색이 있으면 바로 들어가고, 없으면 입장 팝업을 띄운다.
+    // 점프맵에서 돌아온 거라면 이미 한 번 물어본 것이므로(혼자 둘러보기를 골랐다) 다시 묻지 않는다
     private setupMultiplayer (relay: Relay)
     {
         const identity = loadIdentity();
@@ -331,7 +337,7 @@ export class Forest extends Scene
         {
             this.enter(relay, identity);
         }
-        else
+        else if (this.from !== 'sky')
         {
             this.askIdentity(relay);
         }
@@ -355,9 +361,9 @@ export class Forest extends Scene
 
     private enter (relay: Relay, identity: Identity)
     {
-        this.player.setGlowColor(identity.color);
+        // 이미 접속 중이면(점프맵에서 돌아옴) connect 는 아무것도 하지 않고 joinScene 이 방만 옮긴다
         relay.connect({ ...identity, room: 'forest' });
-        this.multiplayer ??= new Multiplayer(this, relay, this.player);
+        this.multiplayer ??= joinScene(this, relay, this.player, 'forest', this.startFeet);
 
         // 서버가 이름을 거절하면 저장을 지우고 다시 묻는다 (규칙은 같지만 서버가 최종 판정)
         const off = relay.onMessage(message =>
