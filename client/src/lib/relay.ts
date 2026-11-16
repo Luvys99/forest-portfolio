@@ -14,6 +14,7 @@ export type Facing = 1 | -1;
 
 export interface Move
 {
+    // 월드 좌표 (픽셀). y 는 발 위치
     x: number;
     y: number;
     facing: Facing;
@@ -104,6 +105,9 @@ export class Relay
     // 탭이 뒤로 가 있는 동안은 보내지 않는다
     private hidden = false;
 
+    // 지금 같은 방에 있는 다른 사람들 (나는 없다). 씬은 매 프레임 이 명단대로 그린다
+    private readonly roster = new Map<string, RemotePlayer>();
+
     private readonly messageListeners = new Set<MessageListener>();
     private readonly statusListeners = new Set<StatusListener>();
     private readonly onVisibilityChange = () => this.setHidden(document.hidden);
@@ -127,6 +131,11 @@ export class Relay
     get isJoined ()
     {
         return this.joined;
+    }
+
+    get players (): ReadonlyMap<string, Readonly<RemotePlayer>>
+    {
+        return this.roster;
     }
 
     onMessage (listener: MessageListener)
@@ -173,6 +182,7 @@ export class Relay
         this.socket = null;
         this.joined = false;
         this.myId = null;
+        this.roster.clear();
         if (socket)
         {
             socket.onclose = null;
@@ -218,6 +228,7 @@ export class Relay
             return; // 재접속 중이면 join 때 새 방으로 들어간다
         }
         this.joined = false;
+        this.roster.clear();
         this.send({ type: 'room', room, x, y });
     }
 
@@ -269,6 +280,7 @@ export class Relay
             }
             this.socket = null;
             this.joined = false;
+            this.roster.clear();
             this.setStatus('offline');
             if (this.stopped)
             {
@@ -288,7 +300,31 @@ export class Relay
                 this.joined = true;
                 this.lastMove = null;
                 this.lastMoveAt = -Infinity;
+                // 방에 들어갈 때마다 명단을 통째로 바꾼다 (재접속, 방 이동 포함)
+                this.roster.clear();
+                for (const player of message.players)
+                {
+                    this.roster.set(player.id, { ...player });
+                }
                 this.setStatus('online');
+                break;
+            case 'joined':
+                this.roster.set(message.player.id, { ...message.player });
+                break;
+            case 'moved':
+            {
+                const player = this.roster.get(message.id);
+                if (player)
+                {
+                    player.x = message.x;
+                    player.y = message.y;
+                    player.facing = message.facing;
+                    player.state = message.state;
+                }
+                break;
+            }
+            case 'left':
+                this.roster.delete(message.id);
                 break;
             case 'error':
                 // 방이 꽉 찼거나 join 이 거절되면 서버가 연결을 끊는다. 같은 요청으로 다시 붙어 봐야 같은 결과다

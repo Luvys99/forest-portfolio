@@ -77,7 +77,8 @@ function connected ()
 {
     const ctx = makeRelay();
     ctx.relay.connect({ name: join.name, color: join.color, room: 'forest' });
-    const socket = FakeSocket.all[0];
+    // 한 테스트에서 여러 번 부를 수 있으므로 방금 만든 소켓을 쓴다
+    const socket = FakeSocket.all[FakeSocket.all.length - 1];
     socket.serverOpens();
     socket.serverSends(welcome);
     return { ...ctx, socket };
@@ -217,6 +218,42 @@ describe('Relay', () =>
 
         relay.connect({ name: join.name, color: join.color, room: 'forest' });
         expect(FakeSocket.all).toHaveLength(2);
+    });
+
+    it('같은 방 사람 명단: welcome 으로 채우고 joined·moved·left 로 갱신한다', () =>
+    {
+        const { relay, socket } = connected();
+        const visitor = welcome.players[0];
+        expect([ ...relay.players.keys() ]).toEqual([ visitor.id ]);
+
+        const newcomer = { ...joined.player, id: 'newcomer', name: '새손님' };
+        socket.serverSends({ ...joined, player: newcomer });
+        expect(relay.players.get('newcomer')?.name).toBe('새손님');
+
+        socket.serverSends(moved);
+        expect(relay.players.get(visitor.id)).toMatchObject({ x: moved.x, y: moved.y, facing: moved.facing, state: moved.state });
+
+        socket.serverSends({ ...moved, id: 'nobody' });       // 명단에 없는 사람의 move 는 무시
+        expect(relay.players.has('nobody')).toBe(false);
+
+        socket.serverSends(left);
+        expect([ ...relay.players.keys() ]).toEqual([ 'newcomer' ]);
+    });
+
+    it('끊기거나, 방을 옮기거나, disconnect 하면 명단을 비우고, 새 welcome 으로 통째로 바꾼다', () =>
+    {
+        const a = connected();
+        a.socket.serverCloses();
+        expect(a.relay.players.size).toBe(0);
+
+        const b = connected();
+        b.relay.changeRoom('sky', 0, 0);
+        expect(b.relay.players.size).toBe(0);
+        b.socket.serverSends({ ...welcome, room: 'sky', players: [ { ...welcome.players[0], id: 'sky-friend' } ] });
+        expect([ ...b.relay.players.keys() ]).toEqual([ 'sky-friend' ]);
+
+        b.relay.disconnect();
+        expect(b.relay.players.size).toBe(0);
     });
 
     it('이미 접속 중이면 connect 를 다시 불러도 소켓을 하나 더 만들지 않는다', () =>

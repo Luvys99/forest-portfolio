@@ -14,7 +14,9 @@ import { Project, PROJECTS_KEY } from '../data/projects';
 import { About, ABOUT_KEY } from '../data/about';
 import { makeTexture } from '../world/textures';
 import { Interactions } from '../world/interactions';
-import { addOneWayPlatform, addPlatformCollider } from '../world/platforms';
+import { addOneWayPlatform } from '../world/platforms';
+import { spawnPlayer } from '../world/player-setup';
+import { Multiplayer } from '../world/multiplayer';
 import { addPortal } from '../world/portal';
 import { fadeToScene } from '../world/scene-transition';
 import { ModalLock } from '../world/modal-lock';
@@ -45,6 +47,7 @@ export class Forest extends Scene
     private teleporting = false;
     private modal!: ModalLock;
     private from: ForestData['from'];
+    private multiplayer: Multiplayer | null = null;
 
     constructor ()
     {
@@ -59,6 +62,7 @@ export class Forest extends Scene
         this.fogs = [];
         this.interactions = new Interactions(this);
         this.teleporting = false;
+        this.multiplayer = null;
     }
 
     preload ()
@@ -131,23 +135,17 @@ export class Forest extends Scene
         this.createParticles();
 
         // 8. 플레이어 + 충돌 + 카메라
-        const ground = this.add.zone(WORLD_W / 2, GROUND_Y + 50, WORLD_W, 100);
-        this.physics.add.existing(ground, true);
-
         const start = this.from === 'sky' ? PORTALS.sky : { x: TREE_X - 900, y: GROUND_Y };
-        this.player = new Player(this, start.x, start.y - 40);
-        this.player.ladders = LADDERS;
-        this.physics.add.collider(this.player.hitbox, ground);
-        addPlatformCollider(this, this.player, platformZones);
-
-        this.modal = new ModalLock(this, this.player);
+        const spawned = spawnPlayer(this, {
+            worldW: WORLD_W, groundY: GROUND_Y, feet: start, platforms: platformZones, ladders: LADDERS,
+            follow: { lerpY: 0.08, deadzone: [ 160, 160 ] }
+        });
+        this.player = spawned.player;
+        this.modal = spawned.modal;
         if (relay)
         {
             this.setupMultiplayer(relay);
         }
-
-        cam.startFollow(this.player.hitbox, true, 0.08, 0.08);
-        cam.setDeadzone(160, 160);
         if (this.from === 'sky')
         {
             cam.centerOn(start.x, start.y - 120);
@@ -166,10 +164,11 @@ export class Forest extends Scene
         EventBus.emit('current-scene-ready', this);
     }
 
-    update (time: number)
+    update (time: number, delta: number)
     {
         this.player.update(time);
         this.interactions.update(this.player, !this.teleporting && !this.modal.isOpen);
+        this.multiplayer?.update(time, delta);
 
         const cam = this.cameras.main;
 
@@ -358,6 +357,7 @@ export class Forest extends Scene
     {
         this.player.setGlowColor(identity.color);
         relay.connect({ ...identity, room: 'forest' });
+        this.multiplayer ??= new Multiplayer(this, relay, this.player);
 
         // 서버가 이름을 거절하면 저장을 지우고 다시 묻는다 (규칙은 같지만 서버가 최종 판정)
         const off = relay.onMessage(message =>

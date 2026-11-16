@@ -1,6 +1,10 @@
-import { BlendModes, GameObjects, Input, Math as PhaserMath, Scene } from 'phaser';
+import { GameObjects, Input, Scene } from 'phaser';
 import { LadderDef } from '../world/layout';
 import { JUMP_VELOCITY } from '../physics';
+import { Facing, PlayerState } from '../../lib/relay';
+import { PALETTE } from '../../lib/identity';
+import { addSpirit, applySpiritPose, SpiritImages } from './spirit';
+import { decayLandSquash, spiritPose, WALK_SPEED } from './spirit-pose';
 
 // 이동 감각 조절 값
 const MAX_SPEED = 260;
@@ -41,8 +45,7 @@ export class Player
     ladders: LadderDef[] = [];
     locked = false;              // 포탈 이동 중에는 조작을 막는다
 
-    private sprite: GameObjects.Image;
-    private glow: GameObjects.Image;
+    private spirit: SpiritImages;
     private keys: Keys;
     private jumpKeysHeld = new Set<string>();
     private jumpPressed = false;
@@ -61,8 +64,6 @@ export class Player
 
     constructor (scene: Scene, x: number, y: number)
     {
-        Player.createTexture(scene);
-
         this.hitbox = scene.add.zone(x, y, HITBOX_W, HITBOX_H);
         scene.physics.add.existing(this.hitbox);
         this.body = this.hitbox.body as Phaser.Physics.Arcade.Body;
@@ -70,16 +71,8 @@ export class Player
         this.body.setMaxVelocity(MAX_SPEED, 1400);
         this.body.setDragX(DRAG);
 
-        this.glow = scene.add.image(x, y, 'glow-dot')
-            .setTint(0x9dffd8)
-            .setScale(2.4)
-            .setBlendMode(BlendModes.ADD)
-            .setAlpha(0.45)
-            .setDepth(23);
-
-        this.sprite = scene.add.image(x, y, 'spirit')
-            .setOrigin(0.5, 58 / 64)
-            .setDepth(24);
+        // 내 정령은 다른 방문자들보다 앞에 그린다 (RemotePlayer 는 이보다 낮은 depth)
+        this.spirit = addSpirit(scene, x, y, { glowColor: parseInt(PALETTE[0].hex, 16), glowDepth: 23, spriteDepth: 24 });
 
         this.keys = scene.input.keyboard!.addKeys({
             left: 'LEFT', right: 'RIGHT', up: 'UP', down: 'DOWN'
@@ -142,7 +135,26 @@ export class Player
     // 정령 색 (hex 6자리, '#' 없이). 멀티플레이 입장 때 고른 색
     setGlowColor (hex: string)
     {
-        this.glow.setTint(parseInt(hex, 16));
+        this.spirit.glow.setTint(parseInt(hex, 16));
+    }
+
+    // 다른 방문자에게 보내는 내 상태
+    get moveState (): PlayerState
+    {
+        if (this.climbing)
+        {
+            return 'climb';
+        }
+        if (!this.onGround)
+        {
+            return 'jump';
+        }
+        return Math.abs(this.body.velocity.x) > WALK_SPEED ? 'walk' : 'idle';
+    }
+
+    get facingDir (): Facing
+    {
+        return this.facing < 0 ? -1 : 1;
     }
 
     // 이번 프레임에 점프 키를 새로 눌렀는지 (한 번 확인하면 지운다)
@@ -345,144 +357,29 @@ export class Player
         }
     }
 
-    // 그림 연출: 숨쉬기, 달릴 때 통통 튀기, 점프할 때 늘어나기, 착지할 때 눌리기, 사다리 탈 때 흔들기
+    // 그림 연출은 spirit-pose.ts 가 계산한다 (다른 방문자의 정령과 같은 계산)
     private syncVisual (time: number, delta: number)
     {
-        const vx = this.body.velocity.x;
-        const vy = this.body.velocity.y;
         const onGround = this.onGround;
-
         if (onGround && !this.wasOnGround && !this.climbing)
         {
             this.landSquash = 1;
         }
         this.wasOnGround = onGround;
-        this.landSquash *= Math.pow(0.0001, delta / 1000 / 0.35);
+        this.landSquash = decayLandSquash(this.landSquash, delta);
 
-        let sx = 1;
-        let sy = 1;
-        let offsetY = 0;
-        let rotation = 0;
-
-        if (this.climbing)
-        {
-            rotation = Math.sin(this.hitbox.y * 0.06) * 0.1;
-        }
-        else if (onGround)
-        {
-            if (Math.abs(vx) > 20)
-            {
-                offsetY = -Math.abs(Math.sin(time * 0.018)) * 5;
-                rotation = 0.06 * Math.sign(vx);
-            }
-            else
-            {
-                const breathe = Math.sin(time * 0.004) * 0.035;
-                sy += breathe;
-                sx -= breathe;
-            }
-        }
-        else
-        {
-            const stretch = PhaserMath.Clamp(-vy / 2600, -0.12, 0.18);
-            sy += stretch;
-            sx -= stretch * 0.6;
-        }
-
-        sy *= 1 - 0.22 * this.landSquash;
-        sx *= 1 + 0.18 * this.landSquash;
-
-        const footY = this.bottom;
-        this.sprite
-            .setPosition(this.hitbox.x, footY + offsetY)
-            .setScale(sx * 1.1, sy * 1.1)
-            .setRotation(rotation)
-            .setFlipX(this.facing < 0);
-
-        this.glow.setPosition(this.hitbox.x, footY - 28 + offsetY);
+        const pose = spiritPose({
+            mode: this.climbing ? 'climb' : onGround ? 'ground' : 'air',
+            vx: this.body.velocity.x,
+            vy: this.body.velocity.y,
+            time,
+            climbY: this.hitbox.y,
+            landSquash: this.landSquash
+        });
+        applySpiritPose(this.spirit, this.hitbox.x, this.bottom, this.facing, pose);
 
         // 무적 시간 동안 깜빡인다
         const blink = this.invincible && Math.floor(time / 90) % 2 === 0;
-        this.sprite.setAlpha(blink ? 0.3 : 1);
-    }
-
-    // 숲의 정령 (임시 캐릭터)
-    private static createTexture (scene: Scene)
-    {
-        if (scene.textures.exists('spirit'))
-        {
-            return;
-        }
-
-        const texture = scene.textures.createCanvas('spirit', 64, 64);
-        if (!texture)
-        {
-            return;
-        }
-
-        const ctx = texture.getContext();
-
-        // 몸통
-        const body = ctx.createRadialGradient(28, 30, 2, 32, 38, 26);
-        body.addColorStop(0, '#f6fffc');
-        body.addColorStop(0.55, '#b4f3e2');
-        body.addColorStop(1, '#5ccdb3');
-        ctx.fillStyle = body;
-        ctx.beginPath();
-        ctx.moveTo(10, 50);
-        ctx.bezierCurveTo(8, 30, 18, 16, 32, 16);
-        ctx.bezierCurveTo(46, 16, 56, 30, 54, 50);
-        ctx.quadraticCurveTo(54, 58, 44, 58);
-        ctx.lineTo(20, 58);
-        ctx.quadraticCurveTo(10, 58, 10, 50);
-        ctx.closePath();
-        ctx.fill();
-
-        ctx.strokeStyle = 'rgba(40,130,115,0.6)';
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
-
-        // 머리 위 새싹
-        ctx.strokeStyle = '#4fae6a';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(32, 17);
-        ctx.quadraticCurveTo(31, 11, 34, 7);
-        ctx.stroke();
-
-        ctx.fillStyle = '#86e48f';
-        ctx.beginPath();
-        ctx.ellipse(39, 7, 6, 3, -0.4, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.ellipse(28, 9, 5, 2.5, 0.5, 0, Math.PI * 2);
-        ctx.fill();
-
-        // 눈 (오른쪽을 보는 방향, 왼쪽으로 가면 좌우 반전)
-        ctx.fillStyle = '#0f2a33';
-        for (const ex of [ 35, 46 ])
-        {
-            ctx.beginPath();
-            ctx.ellipse(ex, 36, 3, 4.5, 0, 0, Math.PI * 2);
-            ctx.fill();
-        }
-        ctx.fillStyle = '#ffffff';
-        for (const ex of [ 36, 47 ])
-        {
-            ctx.beginPath();
-            ctx.arc(ex, 34.5, 1.3, 0, Math.PI * 2);
-            ctx.fill();
-        }
-
-        // 볼터치
-        ctx.fillStyle = 'rgba(255,140,155,0.5)';
-        for (const bx of [ 30, 51 ])
-        {
-            ctx.beginPath();
-            ctx.ellipse(bx, 44, 4, 2.5, 0, 0, Math.PI * 2);
-            ctx.fill();
-        }
-
-        texture.refresh();
+        this.spirit.sprite.setAlpha(blink ? 0.3 : 1);
     }
 }
