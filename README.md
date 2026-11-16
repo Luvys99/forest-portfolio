@@ -35,7 +35,8 @@
 | UI (팝업) | React 19, TypeScript, Vite |
 | 그래픽 | Canvas 2D로 직접 그린 텍스처 + 패럴랙스 + 파티클 (이미지 에셋 없음) |
 | 방명록 · 순위표 | Supabase (PostgreSQL + REST API + RLS) |
-| 배포 | Vercel |
+| 멀티플레이 | Spring Boot WebSocket 중계 서버 (`server/`, Railway). 좌표만 전달하고 물리는 각자 브라우저에서 |
+| 배포 | Vercel (게임 화면), Railway (중계 서버) |
 
 ## 구조
 

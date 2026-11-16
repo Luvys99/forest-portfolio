@@ -58,7 +58,9 @@ cd server
 - 이미지: Gradle로 jar를 만들고 JRE 이미지에서 실행. 플랫폼이 주는 `PORT`로 듣는다 (없으면 8081)
 - 메모리: 256MB 제한에서 약 170MB를 쓴다 (로컬 Docker로 측정)
 - 헬스체크: `GET /health`
-- 클라이언트는 `client/.env.production`의 `VITE_RELAY_URL`(`wss://…/ws`)로 접속한다
+- 공개 도메인의 포트는 앱이 실제로 듣는 포트와 같아야 한다. Railway 는 앱에 `PORT=8080` 을 주므로 도메인도 8080 이다 (Deploy Logs 의 `Tomcat started on port …` 줄로 확인). 다르면 502 `Application failed to respond`
+- 주소: `https://forest-portfolio-production.up.railway.app` (`/health`, `/ws`)
+- 클라이언트는 `client/.env.production`의 `VITE_RELAY_URL`로 접속한다
 - Vercel 프리뷰 주소(`…-git-브랜치-….vercel.app`)는 허용 목록에 없어서 프리뷰에서는 멀티플레이가 꺼진 것처럼 동작한다 (혼자 노는 모드)
 
 로컬에서 컨테이너로 확인:
