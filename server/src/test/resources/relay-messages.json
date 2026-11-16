@@ -1,9 +1,29 @@
 {
   "_설명": "중계 서버 메시지 규약의 예시. 서버 테스트(ProtocolExamplesTest)와 클라이언트 테스트(relay.test.ts)가 같은 파일을 읽어 양쪽이 같은 모양을 쓰는지 확인한다. 좌표는 정수/실수 구분이 생기지 않게 소수로 적는다.",
   "clientToServer": {
-    "join": { "type": "join", "name": "숲지기", "color": "9dffd8", "room": "forest" },
-    "move": { "type": "move", "x": 1234.5, "y": 567.25, "facing": -1, "state": "walk" },
-    "room": { "type": "room", "room": "sky", "x": 380.0, "y": 1200.5 }
+    "join": {
+      "type": "join",
+      "name": "숲지기",
+      "color": "9dffd8",
+      "room": "forest"
+    },
+    "move": {
+      "type": "move",
+      "x": 1234.5,
+      "y": 567.25,
+      "facing": -1,
+      "state": "walk"
+    },
+    "room": {
+      "type": "room",
+      "room": "sky",
+      "x": 380.0,
+      "y": 1200.5
+    },
+    "chat": {
+      "type": "chat",
+      "text": "안녕하세요! 숲 예쁘네요"
+    }
   },
   "serverToClient": {
     "welcome": {
@@ -11,15 +31,49 @@
       "id": "3f1c2a9e-0000-4000-8000-000000000001",
       "room": "forest",
       "players": [
-        { "id": "3f1c2a9e-0000-4000-8000-000000000002", "name": "방문자", "color": "ffaa00", "x": 100.5, "y": 2000.0, "facing": 1, "state": "idle" }
+        {
+          "id": "3f1c2a9e-0000-4000-8000-000000000002",
+          "name": "방문자",
+          "color": "ffaa00",
+          "x": 100.5,
+          "y": 2000.0,
+          "facing": 1,
+          "state": "idle"
+        }
       ]
     },
     "joined": {
       "type": "joined",
-      "player": { "id": "3f1c2a9e-0000-4000-8000-000000000002", "name": "방문자", "color": "ffaa00", "x": 100.5, "y": 2000.0, "facing": 1, "state": "idle" }
+      "player": {
+        "id": "3f1c2a9e-0000-4000-8000-000000000002",
+        "name": "방문자",
+        "color": "ffaa00",
+        "x": 100.5,
+        "y": 2000.0,
+        "facing": 1,
+        "state": "idle"
+      }
     },
-    "moved": { "type": "moved", "id": "3f1c2a9e-0000-4000-8000-000000000002", "x": 1234.5, "y": 567.25, "facing": -1, "state": "walk" },
-    "left": { "type": "left", "id": "3f1c2a9e-0000-4000-8000-000000000002" },
-    "error": { "type": "error", "reason": "room_full" }
+    "moved": {
+      "type": "moved",
+      "id": "3f1c2a9e-0000-4000-8000-000000000002",
+      "x": 1234.5,
+      "y": 567.25,
+      "facing": -1,
+      "state": "walk"
+    },
+    "left": {
+      "type": "left",
+      "id": "3f1c2a9e-0000-4000-8000-000000000002"
+    },
+    "chat": {
+      "type": "chat",
+      "id": "3f1c2a9e-0000-4000-8000-000000000002",
+      "text": "안녕하세요! 숲 예쁘네요"
+    },
+    "error": {
+      "type": "error",
+      "reason": "room_full"
+    }
   }
 }

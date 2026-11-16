@@ -114,7 +114,7 @@ export class Sky extends Scene
         // 다른 방문자는 보이기만 한다. 부딪히지 않고, 별똥별·기록도 각자 따로다
         if (relay)
         {
-            this.multiplayer = joinScene(this, relay, this.player, 'sky', SKY_START);
+            this.multiplayer = joinScene(this, relay, this.player, this.modal, 'sky', SKY_START);
         }
 
         // 6. 방명록 · 순위 표지판 (시작 지점, 골인 지점)

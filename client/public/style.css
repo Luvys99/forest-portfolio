@@ -557,6 +557,70 @@ body {
     font-weight: bold;
 }
 
+/* ---------------------------------------------------------------- 멀티플레이 표시줄, 말풍선 입력 */
+
+/* 왼쪽 위, 게임 안내 문구 아래 */
+.mp-hud {
+    position: fixed;
+    top: 52px;
+    left: max(16px, env(safe-area-inset-left));
+    z-index: 5;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    padding: 4px 4px 4px 12px;
+    border: 1px solid rgba(141, 255, 224, 0.3);
+    border-radius: 999px;
+    background: rgba(6, 24, 34, 0.7);
+    color: #cfeee6;
+    font-size: 14px;
+}
+
+.mp-offline {
+    color: #ffd38a;
+    padding-right: 8px;
+}
+
+.mp-chat-button {
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: rgba(141, 255, 224, 0.15);
+    font-size: 16px;
+    cursor: pointer;
+    touch-action: manipulation;
+
+    &:hover, &:focus-visible {
+        background: rgba(255, 211, 77, 0.3);
+        outline: none;
+    }
+}
+
+.chat-input {
+    position: fixed;
+    top: 14px;
+    left: 50%;
+    z-index: 15;
+    width: min(440px, calc(100% - 32px));
+    transform: translateX(-50%);
+
+    input {
+        box-sizing: border-box;
+        width: 100%;
+        padding: 11px 16px;
+        border: 1px solid #ffd34d;
+        border-radius: 999px;
+        background: rgba(6, 24, 34, 0.92);
+        color: #fff6d6;
+        font: inherit;
+        font-size: 16px;
+        outline: none;
+        box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4);
+    }
+}
+
 /* ---------------------------------------------------------------- 배경음악 버튼 */
 
 .bgm-toggle {

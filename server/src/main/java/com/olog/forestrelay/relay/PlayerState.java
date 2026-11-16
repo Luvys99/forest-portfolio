@@ -21,13 +21,15 @@ public final class PlayerState {
     private int facing = 1;
     private String state = "idle";
 
-    // move 빈도 제한: 1초 창 안에서 몇 번 받았는지 센다
-    private long windowStartMillis;
-    private int movesInWindow;
+    // 메시지 종류별 빈도 제한 (1초 창)
+    private final RateWindow moveRate;
+    private final RateWindow chatRate;
 
-    PlayerState(String id, WebSocketSession session) {
+    PlayerState(String id, WebSocketSession session, int moveRatePerSecond, int chatRatePerSecond) {
         this.id = id;
         this.session = session;
+        this.moveRate = new RateWindow(moveRatePerSecond);
+        this.chatRate = new RateWindow(chatRatePerSecond);
     }
 
     public String id() {
@@ -67,14 +69,12 @@ public final class PlayerState {
         this.state = state;
     }
 
-    /** 1초 창 안의 move 횟수가 limit 를 넘으면 false. 넘친 메시지는 버린다. */
-    synchronized boolean allowMove(long nowMillis, int limit) {
-        if (nowMillis - windowStartMillis >= 1000) {
-            windowStartMillis = nowMillis;
-            movesInWindow = 0;
-        }
-        movesInWindow++;
-        return movesInWindow <= limit;
+    boolean allowMove(long nowMillis) {
+        return moveRate.allow(nowMillis);
+    }
+
+    boolean allowChat(long nowMillis) {
+        return chatRate.allow(nowMillis);
     }
 
     public synchronized Messages.PlayerInfo snapshot() {

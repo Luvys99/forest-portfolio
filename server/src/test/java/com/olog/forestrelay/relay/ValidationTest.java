@@ -24,6 +24,15 @@ class ValidationTest {
     }
 
     @Test
+    @DisplayName("말풍선 글은 이름과 같은 방식으로 정리하고 1~40자만 받는다")
+    void chatIsTrimmedAndLengthLimited() {
+        assertThat(Validation.chat(json.readTree("\"  안녕  \""))).isEqualTo("안녕");
+        assertThat(Validation.chat(json.readTree("\"" + "가".repeat(Validation.CHAT_MAX) + "\""))).hasSize(Validation.CHAT_MAX);
+        assertThat(Validation.chat(json.readTree("\"" + "가".repeat(Validation.CHAT_MAX + 1) + "\""))).isNull();
+        assertThat(Validation.chat(json.readTree("\"   \""))).isNull();
+    }
+
+    @Test
     @DisplayName("색은 hex 6자리만 받고 소문자로 통일한다")
     void colorIsSixHexDigitsLowercased() {
         assertThat(Validation.color(json.readTree("\"9DFFD8\""))).isEqualTo("9dffd8");

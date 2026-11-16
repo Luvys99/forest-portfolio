@@ -2,6 +2,8 @@
 // 서버는 받은 좌표를 같은 방 사람들에게 그대로 전달만 한다. 물리·충돌은 각자 브라우저가 처리한다.
 // 메시지 규약은 server/README.md, 예시는 server/src/test/resources/relay-messages.json (양쪽 테스트가 같이 읽는다)
 
+import { cleanText } from './text';
+
 const URL = import.meta.env.VITE_RELAY_URL;
 
 export const RELAY_URL = URL;
@@ -39,7 +41,8 @@ export interface Profile
 export type ClientMessage =
     | ({ type: 'join' } & Profile)
     | ({ type: 'move' } & Move)
-    | { type: 'room'; room: Room; x: number; y: number };
+    | { type: 'room'; room: Room; x: number; y: number }
+    | { type: 'chat'; text: string };
 
 export type ErrorReason = 'invalid_join' | 'invalid_room' | 'room_full';
 
@@ -48,6 +51,7 @@ export type ServerMessage =
     | { type: 'joined'; player: RemotePlayer }
     | ({ type: 'moved'; id: string } & Move)
     | { type: 'left'; id: string }
+    | { type: 'chat'; id: string; text: string }
     | { type: 'error'; reason: ErrorReason };
 
 export type RelayStatus = 'offline' | 'connecting' | 'online';
@@ -55,6 +59,10 @@ export type RelayStatus = 'offline' | 'connecting' | 'online';
 // 초당 최대 전송 횟수. 서버는 20회까지 받으므로 여유를 둔다
 export const MOVES_PER_SECOND = 15;
 const MOVE_INTERVAL_MS = 1000 / MOVES_PER_SECOND;
+// 말풍선: 최대 글자 수(서버 Validation.CHAT_MAX 와 같다), 보이는 시간, 연속으로 보낼 수 있는 간격(서버는 초당 2번까지)
+export const CHAT_MAX = 40;
+export const CHAT_SHOW_MS = 4000;
+const CHAT_INTERVAL_MS = 500;
 // 끊기면 1초 → 2초 → 4초 … 최대 30초 간격으로 다시 붙는다
 export const RECONNECT_BASE_MS = 1000;
 export const RECONNECT_MAX_MS = 30_000;
@@ -107,6 +115,9 @@ export class Relay
 
     // 지금 같은 방에 있는 다른 사람들 (나는 없다). 씬은 매 프레임 이 명단대로 그린다
     private readonly roster = new Map<string, RemotePlayer>();
+    // 사람별 마지막 말풍선 (내 것 포함). 보일지는 시각으로 정한다
+    private readonly chats = new Map<string, { text: string; at: number }>();
+    private lastChatAt = -Infinity;
 
     private readonly messageListeners = new Set<MessageListener>();
     private readonly statusListeners = new Set<StatusListener>();
@@ -142,6 +153,34 @@ export class Relay
     get players (): ReadonlyMap<string, Readonly<RemotePlayer>>
     {
         return this.roster;
+    }
+
+    // 지금 있는 방 (입장 전이면 null)
+    get room (): Room | null
+    {
+        return this.profile?.room ?? null;
+    }
+
+    // 그 사람의 말풍선이 지금 보여야 하면 글, 아니면 null. id 가 null 이면 null
+    activeChat (id: string | null): string | null
+    {
+        const chat = id === null ? undefined : this.chats.get(id);
+        return chat && this.now() - chat.at < CHAT_SHOW_MS ? chat.text : null;
+    }
+
+    // 말풍선 보내기. 내 말풍선도 바로 보인다. 입장 전, 빈 글, 너무 긴 글, 0.5초 안의 연속은 보내지 않고 false
+    sendChat (raw: string)
+    {
+        const text = cleanText(raw, CHAT_MAX);
+        const now = this.now();
+        if (!this.joined || this.myId === null || text === null || now - this.lastChatAt < CHAT_INTERVAL_MS)
+        {
+            return false;
+        }
+        this.lastChatAt = now;
+        this.chats.set(this.myId, { text, at: now });
+        this.send({ type: 'chat', text });
+        return true;
     }
 
     onMessage (listener: MessageListener)
@@ -189,6 +228,7 @@ export class Relay
         this.joined = false;
         this.myId = null;
         this.roster.clear();
+        this.chats.clear();
         if (socket)
         {
             socket.onclose = null;
@@ -235,6 +275,7 @@ export class Relay
         }
         this.joined = false;
         this.roster.clear();
+        this.chats.clear();
         this.send({ type: 'room', room, x, y });
     }
 
@@ -287,6 +328,7 @@ export class Relay
             this.socket = null;
             this.joined = false;
             this.roster.clear();
+            this.chats.clear();
             this.setStatus('offline');
             if (this.stopped)
             {
@@ -308,6 +350,7 @@ export class Relay
                 this.lastMoveAt = -Infinity;
                 // 방에 들어갈 때마다 명단을 통째로 바꾼다 (재접속, 방 이동 포함)
                 this.roster.clear();
+                this.chats.clear();
                 for (const player of message.players)
                 {
                     this.roster.set(player.id, { ...player });
@@ -331,6 +374,13 @@ export class Relay
             }
             case 'left':
                 this.roster.delete(message.id);
+                this.chats.delete(message.id);
+                break;
+            case 'chat':
+                if (this.roster.has(message.id))
+                {
+                    this.chats.set(message.id, { text: message.text, at: this.now() });
+                }
                 break;
             case 'error':
                 // 방이 꽉 찼거나 join 이 거절되면 서버가 연결을 끊는다. 같은 요청으로 다시 붙어 봐야 같은 결과다
@@ -438,6 +488,8 @@ export function parseServerMessage (text: string): ServerMessage | null
             return typeof raw.id === 'string' && isMove(raw) ? { type: 'moved', id: raw.id, x: raw.x, y: raw.y, facing: raw.facing, state: raw.state } : null;
         case 'left':
             return typeof raw.id === 'string' ? { type: 'left', id: raw.id } : null;
+        case 'chat':
+            return typeof raw.id === 'string' && typeof raw.text === 'string' ? { type: 'chat', id: raw.id, text: raw.text } : null;
         case 'error':
             return typeof raw.reason === 'string' && ERROR_REASONS.includes(raw.reason) ? { type: 'error', reason: raw.reason as ErrorReason } : null;
         default:

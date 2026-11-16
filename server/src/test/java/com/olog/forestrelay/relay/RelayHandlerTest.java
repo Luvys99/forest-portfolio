@@ -106,6 +106,50 @@ class RelayHandlerTest {
     }
 
     @Test
+    @DisplayName("말풍선은 같은 방에만 전달되고, 초당 2번을 넘거나 40자를 넘으면 버린다")
+    void chatIsRelayedWithinRoomAndLimited() throws Exception {
+        TestClient speaker = new TestClient(json).connect(port);
+        speaker.send("""
+                {"type":"join","name":"말하는이","color":"9dffd8","room":"forest"}""");
+        String speakerId = speaker.next().path("id").asString();
+
+        TestClient listener = new TestClient(json).connect(port);
+        listener.send("""
+                {"type":"join","name":"듣는이","color":"9dffd8","room":"forest"}""");
+        listener.next();
+        speaker.next(); // joined
+
+        TestClient elsewhere = new TestClient(json).connect(port);
+        elsewhere.send("""
+                {"type":"join","name":"하늘","color":"9dffd8","room":"sky"}""");
+        elsewhere.next();
+
+        speaker.send("""
+                {"type":"chat","text":"  안녕  "}""");
+        JsonNode chat = listener.next();
+        assertThat(chat.path("type").asString()).isEqualTo("chat");
+        assertThat(chat.path("id").asString()).isEqualTo(speakerId);
+        assertThat(chat.path("text").asString()).isEqualTo("안녕");
+        speaker.assertSilent();   // 보낸 사람에게는 돌아오지 않는다
+        elsewhere.assertSilent(); // 다른 방에는 가지 않는다
+
+        speaker.send("""
+                {"type":"chat","text":"두 번째"}""");
+        speaker.send("""
+                {"type":"chat","text":"세 번째는 1초 안이라 버려진다"}""");
+        assertThat(listener.next().path("text").asString()).isEqualTo("두 번째");
+        listener.assertSilent();
+
+        Thread.sleep(1000);
+        speaker.send("{\"type\":\"chat\",\"text\":\"" + "가".repeat(41) + "\"}");
+        listener.assertSilent();
+
+        speaker.close();
+        listener.close();
+        elsewhere.close();
+    }
+
+    @Test
     @DisplayName("잘못된 join 은 error 로 답하고, 잘못된 move·모르는 타입은 조용히 버린다")
     void invalidMessagesAreRejectedOrIgnored() throws Exception {
         TestClient a = new TestClient(json).connect(port);

@@ -42,6 +42,13 @@ public final class Messages {
         }
     }
 
+    /** 같은 방의 다른 사람들에게: 누가 말풍선을 띄웠다. 저장하지 않는다. */
+    public record Chat(String type, String id, String text) {
+        public static Chat of(String id, String text) {
+            return new Chat("chat", id, text);
+        }
+    }
+
     /** 본인에게: 요청을 거절했다. reason 은 invalid_join, room_full 등. */
     public record Error(String type, String reason) {
         public static Error of(String reason) {

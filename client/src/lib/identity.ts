@@ -3,6 +3,7 @@
 // 세션 id 는 서버가 welcome 으로 준다 (relay.ts)
 
 import { NAME_MAX } from './skyRecords';
+import { cleanText } from './text';
 
 export interface Identity
 {
@@ -32,12 +33,7 @@ const STORAGE_KEY = 'forest-portfolio:identity';
 // 서버(Validation.name)와 같은 규칙: 제어 문자 제거, 앞뒤 공백 제거, 1~NAME_MAX 자. 어긋나면 null
 export function normalizeName (raw: string): string | null
 {
-    const cleaned = raw.replace(/\p{Cc}/gu, '').trim();
-    if (cleaned.length === 0 || cleaned.length > NAME_MAX)
-    {
-        return null;
-    }
-    return cleaned;
+    return cleanText(raw, NAME_MAX);
 }
 
 export function isPaletteColor (hex: string)

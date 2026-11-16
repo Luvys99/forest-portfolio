@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import examples from '../../../server/src/test/resources/relay-messages.json';
 import {
-    MOVES_PER_SECOND, Move, parseServerMessage, RECONNECT_BASE_MS, RECONNECT_MAX_MS, Relay, RelaySocket, ServerMessage
+    CHAT_MAX, CHAT_SHOW_MS, MOVES_PER_SECOND, Move, parseServerMessage, RECONNECT_BASE_MS, RECONNECT_MAX_MS, Relay, RelaySocket, ServerMessage
 } from './relay';
 
 // 서버 없이 Relay 의 동작을 본다. 소켓은 가짜이고 시간은 vitest 가짜 타이머로 흘린다
@@ -57,8 +57,8 @@ class FakeSocket implements RelaySocket
     }
 }
 
-const { join, move, room } = examples.clientToServer;
-const { welcome, joined, moved, left, error } = examples.serverToClient;
+const { join, move, room, chat: chatOut } = examples.clientToServer;
+const { welcome, joined, moved, left, chat: chatIn, error } = examples.serverToClient;
 // JSON 에서 읽은 값은 타입이 넓어지므로(facing: number) Move 로 한 번 옮겨 쓴다. 예시와 같은 값인지는 아래서 확인한다
 const MOVE: Move = { x: move.x, y: move.y, facing: -1, state: 'walk' };
 // 가짜 타이머는 정수 밀리초만 흘리므로 올림한다
@@ -254,6 +254,50 @@ describe('Relay', () =>
 
         b.relay.disconnect();
         expect(b.relay.players.size).toBe(0);
+    });
+
+    it('다른 사람의 말풍선은 받은 뒤 4초 동안만 보이고, 그 사람이 나가면 사라진다', () =>
+    {
+        const { relay, socket } = connected();
+        socket.serverSends(chatIn);
+        expect(relay.activeChat(chatIn.id)).toBe(chatIn.text);
+
+        vi.advanceTimersByTime(CHAT_SHOW_MS - 1);
+        expect(relay.activeChat(chatIn.id)).toBe(chatIn.text);
+        vi.advanceTimersByTime(1);
+        expect(relay.activeChat(chatIn.id)).toBeNull();
+
+        socket.serverSends(chatIn);
+        socket.serverSends(left);
+        expect(relay.activeChat(chatIn.id)).toBeNull();
+
+        socket.serverSends({ ...chatIn, id: 'stranger' });   // 명단에 없는 사람의 말풍선은 무시
+        expect(relay.activeChat('stranger')).toBeNull();
+    });
+
+    it('말풍선을 보내면 내 머리 위에도 보이고, 다듬어서 예시 모양 그대로 보낸다', () =>
+    {
+        const { relay, socket } = connected();
+        expect(relay.sendChat(`  ${chatOut.text}  `)).toBe(true);
+        expect(socket.last()).toEqual(chatOut);
+        expect(relay.activeChat(relay.id)).toBe(chatOut.text);
+    });
+
+    it('입장 전, 빈 글, 너무 긴 글, 0.5초 안의 연속 말풍선은 보내지 않는다', () =>
+    {
+        const before = makeRelay();
+        expect(before.relay.sendChat('안녕')).toBe(false);
+
+        const { relay, socket } = connected();
+        const sent = () => socket.sent.length;
+        const start = sent();
+        expect(relay.sendChat('   ')).toBe(false);
+        expect(relay.sendChat('가'.repeat(CHAT_MAX + 1))).toBe(false);
+        expect(relay.sendChat('가'.repeat(CHAT_MAX))).toBe(true);
+        expect(relay.sendChat('바로 또')).toBe(false);
+        vi.advanceTimersByTime(500);
+        expect(relay.sendChat('조금 뒤')).toBe(true);
+        expect(sent()).toBe(start + 2);
     });
 
     it('이미 있는 방으로 옮기라고 하면 아무것도 보내지 않는다 (씬이 시작할 때마다 방을 선언해도 된다)', () =>

@@ -12,6 +12,7 @@ public record RelayProperties(
         List<String> allowedOrigins,
         int roomCapacity,
         int moveRatePerSecond,
+        int chatRatePerSecond,
         Bounds bounds
 ) {
 

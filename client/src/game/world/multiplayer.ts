@@ -3,11 +3,17 @@ import { Relay, Room } from '../../lib/relay';
 import { loadIdentity } from '../../lib/identity';
 import { Player } from '../objects/Player';
 import { RemotePlayer } from '../objects/RemotePlayer';
+import { EventBus } from '../EventBus';
+import { ChatBubble } from './chat-bubble';
+import { ModalLock } from './modal-lock';
+
+// 내 머리 위 말풍선 높이 (내 캐릭터는 이름표가 없다)
+const MY_BUBBLE_ABOVE_FEET = 74;
 
 // 캐릭터가 있는 씬의 create() 에서 부른다. 멀티플레이 중이면 "나는 이 방에 있다"고 서버에 알리고 동기화를 시작한다.
 // 포탈마다 방 이동을 붙이지 않고 씬 시작에서 선언하므로, 어떤 길로 들어오든 방이 씬과 맞는다.
 // 이미 같은 방이면 relay 가 아무것도 보내지 않는다. 혼자 둘러보는 중이면 null
-export function joinScene (scene: Scene, relay: Relay, player: Player, room: Room, feet: { x: number; y: number }): Multiplayer | null
+export function joinScene (scene: Scene, relay: Relay, player: Player, modal: ModalLock, room: Room, feet: { x: number; y: number }): Multiplayer | null
 {
     if (!relay.active)
     {
@@ -19,7 +25,7 @@ export function joinScene (scene: Scene, relay: Relay, player: Player, room: Roo
         player.setGlowColor(identity.color);
     }
     relay.changeRoom(room, Math.round(feet.x), Math.round(feet.y));
-    return new Multiplayer(scene, relay, player);
+    return new Multiplayer(scene, relay, player, modal);
 }
 
 // 씬 하나의 멀티플레이: 매 프레임 내 위치를 보내고, 같은 방 사람들을 relay 명단대로 그린다.
@@ -28,8 +34,23 @@ export function joinScene (scene: Scene, relay: Relay, player: Player, room: Roo
 export class Multiplayer
 {
     private readonly remotes = new Map<string, RemotePlayer>();
+    private readonly myBubble: ChatBubble;
 
-    constructor (private readonly scene: Scene, private readonly relay: Relay, private readonly player: Player) {}
+    constructor (private readonly scene: Scene, private readonly relay: Relay, private readonly player: Player, modal: ModalLock)
+    {
+        this.myBubble = new ChatBubble(scene);
+
+        // React(Enter 키, 💬 버튼)가 말풍선 입력을 요청하면, 캐릭터를 잠그고 입력창을 연다
+        const onRequestChat = () =>
+        {
+            if (!modal.isOpen && relay.isJoined)
+            {
+                modal.open('open-chat');
+            }
+        };
+        EventBus.on('request-chat', onRequestChat);
+        scene.events.once('shutdown', () => EventBus.off('request-chat', onRequestChat));
+    }
 
     update (time: number, delta: number)
     {
@@ -59,7 +80,10 @@ export class Multiplayer
                 this.remotes.set(id, remote);
             }
             remote.setTarget(info);
+            remote.setChat(this.relay.activeChat(id));
             remote.update(time, delta);
         }
+
+        this.myBubble.show(this.relay.activeChat(this.relay.id), this.player.x, this.player.bottom - MY_BUBBLE_ABOVE_FEET);
     }
 }
