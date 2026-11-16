@@ -139,6 +139,12 @@ export class Player
         scene.game.events.once('destroy', cleanup);
     }
 
+    // 정령 색 (hex 6자리, '#' 없이). 멀티플레이 입장 때 고른 색
+    setGlowColor (hex: string)
+    {
+        this.glow.setTint(parseInt(hex, 16));
+    }
+
     // 이번 프레임에 점프 키를 새로 눌렀는지 (한 번 확인하면 지운다)
     private consumeJump ()
     {

@@ -357,6 +357,9 @@ export class Relay
     }
 }
 
+// 게임 전체가 공유하는 연결 하나. 씬이 바뀌어도 유지된다. 설정이 없으면 null (멀티플레이 없음)
+export const relay: Relay | null = URL ? new Relay(URL) : null;
+
 function sameMove (a: Move, b: Move)
 {
     return a.x === b.x && a.y === b.y && a.facing === b.facing && a.state === b.state;
