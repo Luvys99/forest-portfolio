@@ -9,7 +9,8 @@ import {
 import { formatTime, loadBest, saveBest } from '../world/sky-record';
 import { makeTexture } from '../world/textures';
 import { Interactions } from '../world/interactions';
-import { addOneWayPlatform, addPlatformCollider } from '../world/platforms';
+import { addOneWayPlatform } from '../world/platforms';
+import { spawnPlayer } from '../world/player-setup';
 import { addPortal } from '../world/portal';
 import { fadeToScene } from '../world/scene-transition';
 import { ModalLock } from '../world/modal-lock';
@@ -88,8 +89,6 @@ export class Sky extends Scene
 
         // 3. 시작 바닥 (황금 잎) + 구름 발판
         this.add.image(0, SKY_GROUND_Y - 26, 'leaf-floor').setOrigin(0).setDepth(20);
-        const ground = this.add.zone(SKY_W / 2, SKY_GROUND_Y + 50, SKY_W, 100);
-        this.physics.add.existing(ground, true);
 
         const zones = [ ...CLOUDS, GOAL ].map(cloud => this.createCloud(cloud));
 
@@ -102,20 +101,20 @@ export class Sky extends Scene
         });
 
         // 5. 플레이어
-        this.player = new Player(this, SKY_START.x, SKY_START.y - 40);
-        this.physics.add.collider(this.player.hitbox, ground);
-        addPlatformCollider(this, this.player, zones);
+        const spawned = spawnPlayer(this, {
+            worldW: SKY_W, groundY: SKY_GROUND_Y, feet: SKY_START, platforms: zones,
+            follow: { lerpY: 0.1, deadzone: [ 200, 140 ] }
+        });
+        this.player = spawned.player;
+        this.modal = spawned.modal;
 
         // 6. 방명록 · 순위 표지판 (시작 지점, 골인 지점)
-        this.modal = new ModalLock(this, this.player);
         const onWritten = () => this.pendingClearMs = null;
         EventBus.on('guestbook-written', onWritten);
         this.events.once('shutdown', () => EventBus.off('guestbook-written', onWritten));
         this.createSign(SKY_START.x + 230, SKY_GROUND_Y);
         this.createSign(GOAL.x - 120, GOAL.y);
 
-        cam.startFollow(this.player.hitbox, true, 0.08, 0.1);
-        cam.setDeadzone(200, 140);
         cam.centerOn(SKY_START.x, SKY_START.y - 200);
         cam.fadeIn(320, 5, 18, 28);
 

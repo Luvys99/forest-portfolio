@@ -34,7 +34,7 @@ cd server
 | type | 내용 |
 | --- | --- |
 | `join` | `name`(1~12자), `color`(hex 6자리), `room`(`forest` \| `sky`). 접속 후 한 번 |
-| `move` | `x`, `y`, `facing`(1 \| -1), `state`(`idle` \| `walk` \| `jump` \| `climb`) |
+| `move` | `x`, `y`(월드 좌표, y는 발 위치), `facing`(1 \| -1), `state`(`idle` \| `walk` \| `jump` \| `climb`) |
 | `room` | `room`, `x`, `y`. 포탈로 다른 맵에 갈 때 |
 
 서버 → 클라이언트
