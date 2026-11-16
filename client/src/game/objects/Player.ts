@@ -1,12 +1,12 @@
 import { BlendModes, GameObjects, Input, Math as PhaserMath, Scene } from 'phaser';
 import { LadderDef } from '../world/layout';
+import { JUMP_VELOCITY } from '../physics';
 
 // 이동 감각 조절 값
 const MAX_SPEED = 260;
 const GROUND_ACCEL = 2600;
 const AIR_ACCEL = 1600;
 const DRAG = 2400;
-const JUMP_VELOCITY = 640;       // 메이플처럼 키를 얼마나 누르든 항상 같은 높이로 뛴다
 const COYOTE_MS = 90;            // 발판에서 막 떨어진 직후에도 점프 허용
 const JUMP_BUFFER_MS = 120;      // 착지 직전에 누른 점프도 기억해 뒀다가 실행
 const CLIMB_SPEED = 220;
