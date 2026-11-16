@@ -42,23 +42,25 @@
 ```
                 EventBus (open-project, open-about, open-guestbook, modal-closed)
    ┌──────────────────────────────┐          ┌──────────────────────────────┐
-   │ Phaser (src/game)            │ ───────▶ │ React (src/components)       │
+   │ Phaser (client/src/game)     │ ───────▶ │ React (client/src/components)│
    │ Forest 씬 · Sky 씬            │ ◀─────── │ 프로젝트 · 소개 · 방명록 팝업    │
    │ 캐릭터, 물리, 카메라, 포탈       │          │                              │
    └──────────────────────────────┘          └──────────────┬───────────────┘
             │ preload                                        │ fetch (REST)
-   public/projects.json, about.json                Supabase sky_records 테이블
+   client/public/projects.json, about.json                Supabase sky_records 테이블
 ```
 
 | 폴더 | 내용 |
 | --- | --- |
-| `src/game/scenes` | `Forest`(숲), `Sky`(점프맵) |
-| `src/game/objects` | `Player`: 이동, 점프, 사다리, 넉백 |
-| `src/game/world` | 맵 배치, 캔버스 텍스처, 포탈·발판·상호작용·조작 잠금 등 두 맵이 같이 쓰는 코드 |
-| `src/components` | React 팝업 (공용 `Modal` 틀 + 프로젝트 / 소개 / 방명록) |
-| `src/lib/skyRecords.ts` | Supabase REST 호출 (순위, 최근 방명록, 쓰기) |
-| `public/*.json` | 프로젝트, 소개 내용 (코드 수정 없이 내용만 바꿀 수 있게 분리) |
+| `client/src/game/scenes` | `Forest`(숲), `Sky`(점프맵) |
+| `client/src/game/objects` | `Player`: 이동, 점프, 사다리, 넉백 |
+| `client/src/game/world` | 맵 배치, 캔버스 텍스처, 포탈·발판·상호작용·조작 잠금 등 두 맵이 같이 쓰는 코드 |
+| `client/src/components` | React 팝업 (공용 `Modal` 틀 + 프로젝트 / 소개 / 방명록) |
+| `client/src/lib/skyRecords.ts` | Supabase REST 호출 (순위, 최근 방명록, 쓰기) |
+| `client/public/*.json` | 프로젝트, 소개 내용 (코드 수정 없이 내용만 바꿀 수 있게 분리) |
 | `supabase/sky_records.sql` | 방명록 테이블과 RLS 정책 |
+| `server/` | 멀티플레이 중계 서버 (Spring Boot WebSocket). 실행·규약은 `server/README.md` |
+| `vercel.json` | Vercel이 `client/`에서 설치·빌드하고 `client/dist`를 배포하도록 지정 (대시보드 설정 없이 저장소만으로 동작) |
 
 ## 설계에서 고민한 것
 
@@ -71,6 +73,7 @@
 ## 직접 실행하기
 
 ```bash
+cd client
 npm install
 cp .env.example .env.local   # Supabase 주소와 publishable 키 입력 (없으면 방명록만 비활성)
 npm run dev                  # http://localhost:8080
