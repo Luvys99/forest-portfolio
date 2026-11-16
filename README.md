@@ -60,6 +60,7 @@
 | `client/public/*.json` | 프로젝트, 소개 내용 (코드 수정 없이 내용만 바꿀 수 있게 분리) |
 | `supabase/sky_records.sql` | 방명록 테이블과 RLS 정책 |
 | `server/` | 멀티플레이 중계 서버 (Spring Boot WebSocket). 실행·규약은 `server/README.md` |
+| `vercel.json` | Vercel이 `client/`에서 설치·빌드하고 `client/dist`를 배포하도록 지정 (대시보드 설정 없이 저장소만으로 동작) |
 
 ## 설계에서 고민한 것
 
