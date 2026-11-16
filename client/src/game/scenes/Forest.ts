@@ -20,6 +20,8 @@ import { fadeToScene } from '../world/scene-transition';
 import { ModalLock } from '../world/modal-lock';
 import { createSkyPortalTextures } from '../world/sky-textures';
 import { formatTime, loadBest } from '../world/sky-record';
+import { Relay, relay } from '../../lib/relay';
+import { clearIdentity, Identity, loadIdentity } from '../../lib/identity';
 
 // 엘로딘 느낌의 숲
 // 이미지 에셋 없이 캔버스로 텍스처를 그려서 레이어(패럴랙스) + 빛 + 파티클로 분위기를 낸다.
@@ -139,6 +141,10 @@ export class Forest extends Scene
         addPlatformCollider(this, this.player, platformZones);
 
         this.modal = new ModalLock(this, this.player);
+        if (relay)
+        {
+            this.setupMultiplayer(relay);
+        }
 
         cam.startFollow(this.player.hitbox, true, 0.08, 0.08);
         cam.setDeadzone(160, 160);
@@ -314,6 +320,56 @@ export class Forest extends Scene
             this.player.locked = true;
             fadeToScene(this, 'Sky');
         });
+    }
+
+    // ---------------------------------------------------------------- 멀티플레이
+
+    // 저장된 이름·색이 있으면 바로 들어가고, 없으면 입장 팝업을 띄운다
+    private setupMultiplayer (relay: Relay)
+    {
+        const identity = loadIdentity();
+        if (identity)
+        {
+            this.enter(relay, identity);
+        }
+        else
+        {
+            this.askIdentity(relay);
+        }
+    }
+
+    // 팝업이 닫히면 저장된 정보로 들어간다. 입력 없이 닫았으면(혼자 둘러보기) 아무것도 하지 않는다
+    private askIdentity (relay: Relay, error?: string)
+    {
+        const onClosed = () =>
+        {
+            const identity = loadIdentity();
+            if (identity)
+            {
+                this.enter(relay, identity);
+            }
+        };
+        EventBus.once('modal-closed', onClosed);
+        this.events.once('shutdown', () => EventBus.off('modal-closed', onClosed));
+        this.modal.open('open-enter', { error });
+    }
+
+    private enter (relay: Relay, identity: Identity)
+    {
+        this.player.setGlowColor(identity.color);
+        relay.connect({ ...identity, room: 'forest' });
+
+        // 서버가 이름을 거절하면 저장을 지우고 다시 묻는다 (규칙은 같지만 서버가 최종 판정)
+        const off = relay.onMessage(message =>
+        {
+            if (message.type === 'error' && message.reason === 'invalid_join')
+            {
+                off();
+                clearIdentity();
+                this.askIdentity(relay, '이 이름은 쓸 수 없어요. 다른 이름을 골라 주세요');
+            }
+        });
+        this.events.once('shutdown', off);
     }
 
     // 화면을 어둡게 했다가 다른 포탈 위치에서 다시 밝힌다
