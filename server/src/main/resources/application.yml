@@ -12,6 +12,8 @@ relay:
   room-capacity: 50
   # 세션당 초당 move 메시지 허용 횟수. 넘는 건 버린다 (클라이언트는 15회까지만 보낸다)
   move-rate-per-second: 20
+  # 세션당 초당 chat 메시지 허용 횟수 (도배 방지)
+  chat-rate-per-second: 2
   # 좌표 허용 범위. 숲은 3840x2160, 점프맵이 더 크므로 넉넉히 잡는다
   bounds:
     min-x: -500

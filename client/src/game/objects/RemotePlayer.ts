@@ -1,6 +1,7 @@
 import { GameObjects, Scene } from 'phaser';
 import { Move, PlayerState, RemotePlayer as RemotePlayerInfo } from '../../lib/relay';
 import { followPoint } from '../world/interpolation';
+import { ChatBubble } from '../world/chat-bubble';
 import { addSpirit, applySpiritPose, SpiritImages } from './spirit';
 import { decayLandSquash, PoseMode, spiritPose, WALK_SPEED } from './spirit-pose';
 
@@ -23,6 +24,8 @@ export class RemotePlayer
 {
     private readonly spirit: SpiritImages;
     private readonly nameTag: GameObjects.Text;
+    private readonly bubble: ChatBubble;
+    private chat: string | null = null;
 
     // 지금 그려진 발 위치 (target 을 따라간다)
     private x: number;
@@ -48,6 +51,13 @@ export class RemotePlayer
             fontFamily: 'sans-serif', fontSize: '14px', fontStyle: 'bold', color: `#${info.color}`,
             stroke: '#06141e', strokeThickness: 4
         }).setOrigin(0.5).setDepth(NAME_DEPTH);
+        this.bubble = new ChatBubble(scene);
+    }
+
+    // 지금 보여야 할 말풍선 (없으면 null)
+    setChat (text: string | null)
+    {
+        this.chat = text;
     }
 
     setTarget (move: Move)
@@ -81,6 +91,7 @@ export class RemotePlayer
         });
         applySpiritPose(this.spirit, this.x, this.feetY, facing, pose);
         this.nameTag.setPosition(this.x, this.feetY - NAME_ABOVE_FEET);
+        this.bubble.show(this.chat, this.x, this.feetY - NAME_ABOVE_FEET - 14);
     }
 
     destroy ()
@@ -88,5 +99,6 @@ export class RemotePlayer
         this.spirit.sprite.destroy();
         this.spirit.glow.destroy();
         this.nameTag.destroy();
+        this.bubble.destroy();
     }
 }

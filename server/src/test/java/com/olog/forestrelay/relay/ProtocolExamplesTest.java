@@ -41,6 +41,7 @@ class ProtocolExamplesTest {
                 "joined", Messages.Joined.class,
                 "moved", Messages.Moved.class,
                 "left", Messages.Left.class,
+                "chat", Messages.Chat.class,
                 "error", Messages.Error.class);
 
         for (Map.Entry<String, Class<?>> entry : types.entrySet()) {
@@ -72,6 +73,11 @@ class ProtocolExamplesTest {
         JsonNode moved = a.next();
         assertThat(moved.path("type").asString()).isEqualTo("moved");
         assertThat(moved.path("x").asDouble()).isEqualTo(c2s.get("move").path("x").asDouble());
+
+        b.send(c2s.get("chat"));
+        JsonNode chat = a.next();
+        assertThat(chat.path("type").asString()).isEqualTo("chat");
+        assertThat(chat.path("text").asString()).isEqualTo(c2s.get("chat").path("text").asString());
 
         b.send(c2s.get("room"));
         assertThat(b.next().path("room").asString()).isEqualTo("sky");

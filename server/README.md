@@ -36,6 +36,7 @@ cd server
 | `join` | `name`(1~12자), `color`(hex 6자리), `room`(`forest` \| `sky`). 접속 후 한 번 |
 | `move` | `x`, `y`(월드 좌표, y는 발 위치), `facing`(1 \| -1), `state`(`idle` \| `walk` \| `jump` \| `climb`) |
 | `room` | `room`, `x`, `y`. 포탈로 다른 맵에 갈 때 |
+| `chat` | `text`(1~40자). 말풍선. 세션당 초당 2번까지, 저장하지 않는다 |
 
 서버 → 클라이언트
 
@@ -45,6 +46,7 @@ cd server
 | `joined` | 같은 방 | `player` 한 명의 정보 |
 | `moved` | 같은 방 | `id`, `x`, `y`, `facing`, `state` |
 | `left` | 같은 방 | `id`. 접속 종료 또는 다른 방으로 이동 |
+| `chat` | 같은 방 | `id`, `text` |
 | `error` | 본인 | `reason`: `invalid_join`, `invalid_room`, `room_full` |
 
 보낸 사람에게는 자기 메시지가 돌아가지 않습니다.
@@ -76,7 +78,8 @@ docker run -p 8081:8081 forest-relay
 
 - 이름 길이(공백·제어 문자 정리 후 1~12자), 색 형식, 방 이름, 상태 값
 - 좌표가 숫자이고 설정된 범위 안인지
-- 세션당 `move` 초당 20회 초과분은 버림 (클라이언트는 15회까지만 보냄)
+- 세션당 `move` 초당 20회, `chat` 초당 2회 초과분은 버림 (클라이언트는 move 15회까지만 보냄)
+- 말풍선 글은 이름과 같은 방식으로 정리하고 1~40자
 - 방 정원 50명
 - 브라우저 `Origin` 헤더가 허용 목록에 있는지 (목록 밖이면 403)
 

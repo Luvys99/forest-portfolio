@@ -367,7 +367,7 @@ export class Forest extends Scene
     {
         // 이미 접속 중이면(점프맵에서 돌아옴) connect 는 아무것도 하지 않고 joinScene 이 방만 옮긴다
         relay.connect({ ...identity, room: 'forest' });
-        this.multiplayer ??= joinScene(this, relay, this.player, 'forest', this.startFeet);
+        this.multiplayer ??= joinScene(this, relay, this.player, this.modal, 'forest', this.startFeet);
 
         // 서버가 이름을 거절하면 저장을 지우고 다시 묻는다 (규칙은 같지만 서버가 최종 판정)
         const off = relay.onMessage(message =>

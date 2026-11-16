@@ -21,8 +21,8 @@ import tools.jackson.databind.ObjectMapper;
 /**
  * 중계의 전부. 받은 메시지를 검사해서 같은 방 사람들에게 그대로 전달한다.
  *
- * 클라이언트 → 서버: join, move, room
- * 서버 → 클라이언트: welcome, joined, moved, left, error  ({@link Messages})
+ * 클라이언트 → 서버: join, move, room, chat
+ * 서버 → 클라이언트: welcome, joined, moved, left, chat, error  ({@link Messages})
  *
  * 서버는 물리·충돌·기록을 판정하지 않는다. 그래서 틱 루프가 없고, 메시지가 올 때만 일한다.
  */
@@ -53,7 +53,7 @@ public class RelayHandler extends TextWebSocketHandler {
         // 같은 세션에 여러 스레드가 동시에 send 하면 안 되므로 (다른 사람들의 move 가 각자 스레드에서 들어온다) 직렬화해 주는 래퍼로 감싼다
         WebSocketSession safe = new ConcurrentWebSocketSessionDecorator(session, SEND_TIME_LIMIT_MS, SEND_BUFFER_LIMIT_BYTES);
         String id = UUID.randomUUID().toString();
-        players.put(session.getId(), new PlayerState(id, safe));
+        players.put(session.getId(), new PlayerState(id, safe, properties.moveRatePerSecond(), properties.chatRatePerSecond()));
         log.debug("connected {} (session {})", id, session.getId());
     }
 
@@ -79,6 +79,7 @@ public class RelayHandler extends TextWebSocketHandler {
         switch (type) {
             case "join" -> onJoin(player, node);
             case "move" -> onMove(player, node);
+            case "chat" -> onChat(player, node);
             case "room" -> onRoom(player, node);
             default -> log.debug("ignoring unknown type '{}' from {}", type, player.id());
         }
@@ -136,7 +137,7 @@ public class RelayHandler extends TextWebSocketHandler {
         if (room == null) {
             return; // join 전
         }
-        if (!player.allowMove(System.currentTimeMillis(), properties.moveRatePerSecond())) {
+        if (!player.allowMove(System.currentTimeMillis())) {
             return; // 너무 잦은 전송은 조용히 버린다
         }
         JsonNode xNode = node.get("x");
@@ -154,6 +155,19 @@ public class RelayHandler extends TextWebSocketHandler {
 
         player.update(x, y, facing, state);
         broadcast(room, player.id(), Messages.Moved.of(player.snapshot()));
+    }
+
+    /** 말풍선. 같은 방 사람들에게만, 저장하지 않고 전달한다. 너무 잦거나 길면 버린다. */
+    private void onChat(PlayerState player, JsonNode node) {
+        String room = player.room();
+        if (room == null || !player.allowChat(System.currentTimeMillis())) {
+            return;
+        }
+        String text = Validation.chat(node.get("text"));
+        if (text == null) {
+            return;
+        }
+        broadcast(room, player.id(), Messages.Chat.of(player.id(), text));
     }
 
     /** 다른 방으로 이동. 이전 방에는 left, 새 방에는 joined, 본인에게는 새 방 사람들이 담긴 welcome. */

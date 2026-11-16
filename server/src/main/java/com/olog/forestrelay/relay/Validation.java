@@ -11,19 +11,29 @@ import tools.jackson.databind.JsonNode;
 final class Validation {
 
     static final int NAME_MAX = 12;
+    static final int CHAT_MAX = 40;
     private static final Pattern COLOR = Pattern.compile("^[0-9a-fA-F]{6}$");
     private static final Set<String> STATES = Set.of("idle", "walk", "jump", "climb");
 
     private Validation() {
     }
 
-    /** 앞뒤 공백 제거, 제어 문자 제거. 비어 있거나 길면 null. */
+    /** 이름: 제어 문자·앞뒤 공백 제거 후 1~12자. 어긋나면 null */
     static String name(JsonNode node) {
+        return cleanText(node, NAME_MAX);
+    }
+
+    /** 말풍선 글: 이름과 같은 방식으로 정리하고 1~40자. 어긋나면 null */
+    static String chat(JsonNode node) {
+        return cleanText(node, CHAT_MAX);
+    }
+
+    private static String cleanText(JsonNode node, int max) {
         if (node == null || !node.isString()) {
             return null;
         }
         String cleaned = node.asString().replaceAll("[\\p{Cntrl}]", "").strip();
-        if (cleaned.isEmpty() || cleaned.length() > NAME_MAX) {
+        if (cleaned.isEmpty() || cleaned.length() > max) {
             return null;
         }
         return cleaned;
