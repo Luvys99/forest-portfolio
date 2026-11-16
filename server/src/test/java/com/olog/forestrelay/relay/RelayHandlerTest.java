@@ -2,17 +2,11 @@ package com.olog.forestrelay.relay;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.TimeUnit;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
-import org.springframework.web.socket.TextMessage;
-import org.springframework.web.socket.WebSocketSession;
-import org.springframework.web.socket.client.standard.StandardWebSocketClient;
-import org.springframework.web.socket.handler.TextWebSocketHandler;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
@@ -28,42 +22,10 @@ class RelayHandlerTest {
     @Autowired
     ObjectMapper json;
 
-    /** 받은 메시지를 큐에 쌓아 두는 테스트용 클라이언트. */
-    class Client extends TextWebSocketHandler {
-
-        final BlockingQueue<JsonNode> inbox = new LinkedBlockingQueue<>();
-        WebSocketSession session;
-
-        Client connect() throws Exception {
-            session = new StandardWebSocketClient()
-                    .execute(this, "ws://localhost:" + port + "/ws")
-                    .get(5, TimeUnit.SECONDS);
-            return this;
-        }
-
-        @Override
-        protected void handleTextMessage(WebSocketSession session, TextMessage message) {
-            inbox.add(json.readTree(message.getPayload()));
-        }
-
-        void send(String payload) throws Exception {
-            session.sendMessage(new TextMessage(payload));
-        }
-
-        JsonNode next() throws Exception {
-            JsonNode node = inbox.poll(3, TimeUnit.SECONDS);
-            assertThat(node).as("메시지를 3초 안에 받아야 한다").isNotNull();
-            return node;
-        }
-
-        void assertSilent() throws Exception {
-            assertThat(inbox.poll(300, TimeUnit.MILLISECONDS)).as("메시지가 오면 안 된다").isNull();
-        }
-    }
-
     @Test
+    @DisplayName("입장·이동·퇴장이 같은 방 사람들에게 전달되고, 보낸 사람에게는 돌아오지 않는다")
     void joinMoveLeaveAreRelayedWithinRoom() throws Exception {
-        Client a = new Client().connect();
+        TestClient a = new TestClient(json).connect(port);
         a.send("""
                 {"type":"join","name":" 숲지기 ","color":"9DFFD8","room":"forest"}""");
         JsonNode welcomeA = a.next();
@@ -71,7 +33,7 @@ class RelayHandlerTest {
         assertThat(welcomeA.path("players")).isEmpty();
         String idA = welcomeA.path("id").asString();
 
-        Client b = new Client().connect();
+        TestClient b = new TestClient(json).connect(port);
         b.send("""
                 {"type":"join","name":"방문자","color":"ffaa00","room":"forest"}""");
         JsonNode welcomeB = b.next();
@@ -93,29 +55,30 @@ class RelayHandlerTest {
         assertThat(moved.path("facing").asInt()).isEqualTo(-1);
         b.assertSilent(); // 보낸 사람에게는 되돌아오지 않는다
 
-        b.session.close();
+        b.close();
         JsonNode left = a.next();
         assertThat(left.path("type").asString()).isEqualTo("left");
         assertThat(left.path("id").asString()).isEqualTo(idB);
         assertThat(idA).isNotEqualTo(idB);
 
-        a.session.close();
+        a.close();
     }
 
     @Test
+    @DisplayName("방을 옮기면 이전 방엔 left, 새 방엔 joined, 본인에겐 새 방의 welcome")
     void roomChangeMovesPlayerBetweenRooms() throws Exception {
-        Client forest = new Client().connect();
+        TestClient forest = new TestClient(json).connect(port);
         forest.send("""
                 {"type":"join","name":"숲","color":"9dffd8","room":"forest"}""");
         forest.next();
 
-        Client sky = new Client().connect();
+        TestClient sky = new TestClient(json).connect(port);
         sky.send("""
                 {"type":"join","name":"하늘","color":"9dffd8","room":"sky"}""");
         sky.next();
         forest.assertSilent(); // 다른 방 입장은 보이지 않는다
 
-        Client mover = new Client().connect();
+        TestClient mover = new TestClient(json).connect(port);
         mover.send("""
                 {"type":"join","name":"이동","color":"9dffd8","room":"forest"}""");
         String moverId = mover.next().path("id").asString();
@@ -137,14 +100,15 @@ class RelayHandlerTest {
         assertThat(joined.path("player").path("id").asString()).isEqualTo(moverId);
         assertThat(joined.path("player").path("x").asDouble()).isEqualTo(100);
 
-        forest.session.close();
-        sky.session.close();
-        mover.session.close();
+        forest.close();
+        sky.close();
+        mover.close();
     }
 
     @Test
+    @DisplayName("잘못된 join 은 error 로 답하고, 잘못된 move·모르는 타입은 조용히 버린다")
     void invalidMessagesAreRejectedOrIgnored() throws Exception {
-        Client a = new Client().connect();
+        TestClient a = new TestClient(json).connect(port);
         a.send("""
                 {"type":"join","name":"이름이열두글자를넘어가는사람","color":"9dffd8","room":"forest"}""");
         JsonNode error = a.next();
@@ -155,7 +119,7 @@ class RelayHandlerTest {
                 {"type":"join","name":"정상","color":"9dffd8","room":"forest"}""");
         a.next();
 
-        Client b = new Client().connect();
+        TestClient b = new TestClient(json).connect(port);
         b.send("""
                 {"type":"join","name":"관찰자","color":"9dffd8","room":"forest"}""");
         b.next();
@@ -172,7 +136,7 @@ class RelayHandlerTest {
                 {"type":"attack","target":"b"}""");                                 // 모르는 타입
         b.assertSilent();
 
-        a.session.close();
-        b.session.close();
+        a.close();
+        b.close();
     }
 }
