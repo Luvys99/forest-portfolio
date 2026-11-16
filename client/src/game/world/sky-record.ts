@@ -29,11 +29,11 @@ export function saveBest (ms: number)
     }
 }
 
-// 83456 → "1:23.45"
+// 83456 → "1:23.45". 백분초 아래는 버린다 (반올림하면 59999가 "0:60.00"이 된다)
 export function formatTime (ms: number)
 {
-    const total = ms / 1000;
-    const min = Math.floor(total / 60);
-    const sec = (total % 60).toFixed(2).padStart(5, '0');
+    const centis = Math.floor(ms / 10);
+    const min = Math.floor(centis / 6000);
+    const sec = ((centis % 6000) / 100).toFixed(2).padStart(5, '0');
     return `${min}:${sec}`;
 }

@@ -78,6 +78,7 @@ npm install
 cp .env.example .env.local   # Supabase 주소와 publishable 키 입력 (없으면 방명록만 비활성)
 npm run dev                  # http://localhost:8080
 npm run build                # dist/ 에 배포용 파일 생성
+npm run lint && npm run typecheck && npm test   # PR마다 CI가 같은 검사를 돌린다
 ```
 
 방명록을 쓰려면 Supabase 프로젝트를 만들고 `supabase/sky_records.sql`을 SQL Editor에서 실행합니다.

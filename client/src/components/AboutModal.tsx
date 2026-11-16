@@ -1,6 +1,6 @@
 import { About } from '../game/data/about';
 import { Modal } from './Modal';
-import { BGM } from './BgmToggle';
+import { BGM } from '../lib/bgm';
 
 interface Props
 {

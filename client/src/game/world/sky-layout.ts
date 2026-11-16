@@ -8,7 +8,7 @@
 
 export const SKY_W = 2560;
 
-// 한 칸 높이 (점프 최고 높이 약 128px보다 낮게)
+// 한 칸 높이. 점프 최고 높이(physics.ts의 MAX_JUMP_HEIGHT, 128px)보다 낮아야 한다 (sky-layout.test.ts)
 const UP = 104;
 const HALF = 60;
 

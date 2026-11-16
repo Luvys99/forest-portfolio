@@ -1,6 +1,7 @@
 import { AUTO, Game, Scale } from 'phaser';
 import { Forest } from './scenes/Forest';
 import { Sky } from './scenes/Sky';
+import { GRAVITY_Y } from './physics';
 
 //  Find out more information about the Game Config at:
 //  https://docs.phaser.io/api-documentation/typedef/types-core#gameconfig
@@ -17,7 +18,7 @@ const config: Phaser.Types.Core.GameConfig = {
     physics: {
         default: 'arcade',
         arcade: {
-            gravity: { x: 0, y: 1600 },
+            gravity: { x: 0, y: GRAVITY_Y },
             debug: false
         }
     },
