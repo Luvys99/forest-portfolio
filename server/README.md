@@ -49,6 +49,8 @@ cd server
 
 보낸 사람에게는 자기 메시지가 돌아가지 않습니다.
 
+예시는 `src/test/resources/relay-messages.json`에 있습니다. 서버 테스트(`ProtocolExamplesTest`)와 클라이언트 테스트(`client/src/lib/relay.test.ts`)가 같은 파일을 읽으므로, 규약을 바꾸면 양쪽이 같이 깨집니다.
+
 ## 서버가 검사하는 것
 
 서버는 맵을 모르므로 "형식이 맞는가"까지만 봅니다. 어긋난 메시지는 조용히 버리거나 `error`로 답합니다.
