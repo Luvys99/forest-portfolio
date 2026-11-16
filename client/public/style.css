@@ -9,6 +9,8 @@ body {
 #game-container {
     width: 100%;
     height: 100%;
+    /* 게임 화면을 두드려도 확대·스크롤되지 않게 */
+    touch-action: none;
 }
 
 #app {
@@ -443,6 +445,116 @@ body {
     &:hover {
         color: #cfeee6;
     }
+}
+
+/* ---------------------------------------------------------------- 휴대폰 화면 버튼 */
+
+/* 터치 화면에서만 보인다 */
+.touch-controls {
+    display: none;
+}
+
+.rotate-hint {
+    display: none;
+}
+
+@media (pointer: coarse) {
+    .touch-controls {
+        position: fixed;
+        inset: auto 0 0 0;
+        z-index: 4;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+        padding: 0 max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+        pointer-events: none;
+    }
+
+    /* 배경음악 버튼은 오른쪽 아래 화면 버튼과 겹치지 않게 오른쪽 위로 */
+    .bgm-toggle {
+        top: 14px;
+        bottom: auto;
+    }
+}
+
+/* 세로로 들고 있으면 게임 대신 안내 */
+@media (pointer: coarse) and (orientation: portrait) {
+    .rotate-hint {
+        position: fixed;
+        inset: 0;
+        z-index: 20;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        gap: 4px;
+        background: #05121c;
+        color: #fff6d6;
+        text-align: center;
+
+        p {
+            margin: 0;
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .rotate-hint-sub {
+            color: #9fc4ba;
+            font-size: 14px;
+            font-weight: normal;
+        }
+    }
+
+    .rotate-hint-phone {
+        font-size: 56px;
+        animation: rotate-hint 2s ease-in-out infinite;
+    }
+
+    .touch-controls {
+        display: none;
+    }
+}
+
+@keyframes rotate-hint {
+    0%, 30% { transform: rotate(0deg); }
+    60%, 100% { transform: rotate(-90deg); }
+}
+
+.touch-pad {
+    display: flex;
+    gap: 12px;
+    align-items: flex-end;
+}
+
+.touch-button {
+    width: 64px;
+    height: 64px;
+    padding: 0;
+    border: 1px solid rgba(141, 255, 224, 0.4);
+    border-radius: 50%;
+    background: rgba(6, 24, 34, 0.55);
+    color: #cfeee6;
+    font: inherit;
+    font-size: 22px;
+    pointer-events: auto;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
+
+    &:active {
+        background: rgba(255, 211, 77, 0.35);
+        border-color: #ffd34d;
+    }
+}
+
+/* 점프는 엄지가 가장 자주 누르므로 크게 */
+.touch-jump {
+    width: 84px;
+    height: 84px;
+    font-size: 16px;
+    font-weight: bold;
 }
 
 /* ---------------------------------------------------------------- 배경음악 버튼 */
