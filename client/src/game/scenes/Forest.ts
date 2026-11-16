@@ -153,10 +153,14 @@ export class Forest extends Scene
 
         // 9. 비네팅 + 조작 안내
         this.add.image(0, 0, 'vignette').setOrigin(0).setScrollFactor(0).setDepth(50);
-        // Mac은 Alt 대신 Option이라고 적힌 키를 쓴다
+        // 터치 화면이면 화면 버튼 안내. Mac은 Alt 대신 Option이라고 적힌 키를 쓴다
+        const isTouch = window.matchMedia('(pointer: coarse)').matches;
         const isMac = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
         const altName = isMac ? 'Option' : 'Alt';
-        this.add.text(24, 20, `← → 이동  ·  Space / ${altName} 점프  ·  ↑ ↓ 사다리  ·  ↓ + 점프 내려가기  ·  ↑ 보기 / 포탈`, {
+        const guide = isTouch
+            ? '◀ ▶ 이동  ·  점프  ·  ▲ ▼ 사다리  ·  ▼ + 점프 내려가기  ·  ▲ 보기 / 포탈'
+            : `← → 이동  ·  Space / ${altName} 점프  ·  ↑ ↓ 사다리  ·  ↓ + 점프 내려가기  ·  ↑ 보기 / 포탈`;
+        this.add.text(24, 20, guide, {
             fontFamily: 'sans-serif', fontSize: '15px', color: '#cfeee6'
         }).setScrollFactor(0).setAlpha(0.7).setDepth(60);
 

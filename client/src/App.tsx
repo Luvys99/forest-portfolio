@@ -8,6 +8,8 @@ import { AboutModal } from './components/AboutModal';
 import { GuestbookModal } from './components/GuestbookModal';
 import { EnterModal } from './components/EnterModal';
 import { BgmToggle } from './components/BgmToggle';
+import { TouchControls } from './components/TouchControls';
+import { RotateHint } from './components/RotateHint';
 
 // 지금 열려 있는 팝업 (한 번에 하나만)
 type OpenModal =
@@ -52,6 +54,8 @@ function App()
         <div id="app">
             <PhaserGame />
             <BgmToggle />
+            <TouchControls />
+            <RotateHint />
             {modal?.type === 'project' && <ProjectModal project={modal.project} onClose={close} />}
             {modal?.type === 'about' && <AboutModal about={modal.about} onClose={close} />}
             {modal?.type === 'guestbook' && <GuestbookModal clearMs={modal.clearMs} onClose={close} />}

@@ -1,6 +1,7 @@
 import { Scene } from 'phaser';
 import { EventBus } from '../EventBus';
 import { Player } from '../objects/Player';
+import { controls } from '../../lib/controls';
 
 // React 팝업이 열려 있는 동안 캐릭터 조작과 Phaser 키 입력을 멈춘다.
 // 팝업이 닫히면 React가 'modal-closed'를 보내고, 그때 다시 푼다
@@ -37,7 +38,8 @@ export class ModalLock
         {
             keyboard.enableGlobalCapture();
         }
-        // 팝업을 보는 동안 눌렀던 키가 닫힌 뒤에 눌린 상태로 남지 않게 한다
+        // 팝업을 보는 동안 눌렀던 키·터치 버튼이 닫힌 뒤에 눌린 상태로 남지 않게 한다
         keyboard.resetKeys();
+        controls.releaseAll();
     }
 }

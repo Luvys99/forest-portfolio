@@ -4,6 +4,7 @@ import { JUMP_VELOCITY } from '../physics';
 import { Facing, PlayerState } from '../../lib/relay';
 import { PALETTE } from '../../lib/identity';
 import { addSpirit, applySpiritPose, SpiritImages } from './spirit';
+import { controls } from '../../lib/controls';
 import { decayLandSquash, spiritPose, WALK_SPEED } from './spirit-pose';
 
 // 이동 감각 조절 값
@@ -49,6 +50,7 @@ export class Player
     private keys: Keys;
     private jumpKeysHeld = new Set<string>();
     private jumpPressed = false;
+    private upTouchedThisFrame = false;
 
     private now = 0;
     private lastGroundedAt = -Infinity;
@@ -157,10 +159,23 @@ export class Player
         return this.facing < 0 ? -1 : 1;
     }
 
-    // 이번 프레임에 점프 키를 새로 눌렀는지 (한 번 확인하면 지운다)
+    // 이번 프레임의 방향 입력: 키보드 방향키와 화면 터치 버튼(lib/controls)을 합친다.
+    // 이동·사다리 로직은 이 함수만 읽으므로 입력이 어디서 왔는지 모른다
+    private readDirections ()
+    {
+        return {
+            left: this.keys.left.isDown || controls.isDown('left'),
+            right: this.keys.right.isDown || controls.isDown('right'),
+            up: this.keys.up.isDown || controls.isDown('up'),
+            down: this.keys.down.isDown || controls.isDown('down')
+        };
+    }
+
+    // 이번 프레임에 점프를 새로 눌렀는지 (점프 키 또는 터치 점프 버튼. 한 번 확인하면 지운다)
     private consumeJump ()
     {
-        const pressed = this.jumpPressed;
+        const touched = controls.consumePressed('jump');
+        const pressed = this.jumpPressed || touched;
         this.jumpPressed = false;
         return pressed;
     }
@@ -192,10 +207,10 @@ export class Player
         this.lastOnPlatformAt = this.now;
     }
 
-    // ↑ 키를 이번 프레임에 눌렀는지 (상호작용용)
+    // ↑ 를 이번 프레임에 눌렀는지 (구슬·포탈 상호작용용). 터치 ↑ 는 update() 에서 매 프레임 확인해 둔다
     justPressedUp ()
     {
-        return Input.Keyboard.JustDown(this.keys.up);
+        return Input.Keyboard.JustDown(this.keys.up) || this.upTouchedThisFrame;
     }
 
     get invincible ()
@@ -229,6 +244,8 @@ export class Player
     update (time: number)
     {
         this.now = time;
+        // 상호작용 대상 근처가 아닐 때 누른 터치 ↑ 가 남아 있다가 나중에 반응하지 않게, 매 프레임 확인하고 지운다
+        this.upTouchedThisFrame = controls.consumePressed('up');
 
         if (this.locked || time < this.stunUntil)
         {
@@ -244,17 +261,17 @@ export class Player
             return;
         }
 
-        const { left, right, up, down } = this.keys;
+        const { left, right, up, down } = this.readDirections();
         const onGround = this.onGround;
 
         // 좌우 이동: 가속도로 움직이고, 키를 떼면 마찰(drag)로 멈춘다
         const accel = onGround ? GROUND_ACCEL : AIR_ACCEL;
-        if (left.isDown && !right.isDown)
+        if (left && !right)
         {
             this.body.setAccelerationX(-accel);
             this.facing = -1;
         }
-        else if (right.isDown && !left.isDown)
+        else if (right && !left)
         {
             this.body.setAccelerationX(accel);
             this.facing = 1;
@@ -272,7 +289,7 @@ export class Player
         {
             const belowTop = this.bottom > ladder.top + 6;
             const standingOnTop = onGround && Math.abs(this.bottom - ladder.top) < 10;
-            if ((up.isDown && belowTop) || (down.isDown && standingOnTop))
+            if ((up && belowTop) || (down && standingOnTop))
             {
                 this.startClimbing(ladder);
                 return;
@@ -287,7 +304,7 @@ export class Player
         if (this.consumeJump())
         {
             const onPlatform = time - this.lastOnPlatformAt < 80;
-            if (down.isDown && onGround && onPlatform)
+            if (down && onGround && onPlatform)
             {
                 // ↓ + 점프: 발판 아래로 내려가기
                 this.dropUntil = time + DROP_THROUGH_MS;
@@ -325,14 +342,14 @@ export class Player
 
     private updateClimbing (ladder: LadderDef)
     {
-        const { left, right, up, down } = this.keys;
+        const { left, right, up, down } = this.readDirections();
 
-        const vy = up.isDown ? -CLIMB_SPEED : down.isDown ? CLIMB_SPEED : 0;
+        const vy = up ? -CLIMB_SPEED : down ? CLIMB_SPEED : 0;
         this.body.setVelocity(0, vy);
 
         // 사다리에서 옆으로 점프해서 내리기
         const jumped = this.consumeJump();
-        const dir = left.isDown ? -1 : right.isDown ? 1 : 0;
+        const dir = left ? -1 : right ? 1 : 0;
         if (jumped && dir !== 0)
         {
             this.stopClimbing();
