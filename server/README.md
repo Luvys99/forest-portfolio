@@ -51,6 +51,23 @@ cd server
 
 예시는 `src/test/resources/relay-messages.json`에 있습니다. 서버 테스트(`ProtocolExamplesTest`)와 클라이언트 테스트(`client/src/lib/relay.test.ts`)가 같은 파일을 읽으므로, 규약을 바꾸면 양쪽이 같이 깨집니다.
 
+## 배포 (Railway)
+
+`Dockerfile`과 `railway.json`이 빌드·실행·헬스체크 방법을 정해 두었으므로, Railway에서는 저장소를 연결하고 루트 폴더만 지정하면 됩니다.
+
+- 이미지: Gradle로 jar를 만들고 JRE 이미지에서 실행. 플랫폼이 주는 `PORT`로 듣는다 (없으면 8081)
+- 메모리: 256MB 제한에서 약 170MB를 쓴다 (로컬 Docker로 측정)
+- 헬스체크: `GET /health`
+- 클라이언트는 `client/.env.production`의 `VITE_RELAY_URL`(`wss://…/ws`)로 접속한다
+- Vercel 프리뷰 주소(`…-git-브랜치-….vercel.app`)는 허용 목록에 없어서 프리뷰에서는 멀티플레이가 꺼진 것처럼 동작한다 (혼자 노는 모드)
+
+로컬에서 컨테이너로 확인:
+
+```bash
+docker build -t forest-relay .
+docker run -p 8081:8081 forest-relay
+```
+
 ## 서버가 검사하는 것
 
 서버는 맵을 모르므로 "형식이 맞는가"까지만 봅니다. 어긋난 메시지는 조용히 버리거나 `error`로 답합니다.
@@ -67,6 +84,8 @@ cd server
 RELAY_ALLOWED_ORIGINS=https://forest-portfolio-pi.vercel.app,http://localhost:8080
 RELAY_ROOM_CAPACITY=50
 ```
+
+환경변수로 넣은 목록은 기본 목록에 더해지지 않고 **통째로 바뀝니다.** 배포 사이트 주소를 빼먹으면 그 사이트에서 접속이 거부됩니다(403).
 
 ## 구조
 
