@@ -133,6 +133,12 @@ export class Relay
         return this.joined;
     }
 
+    // 입장했고 아직 끊지 않았는지 (재접속 중도 포함). 혼자 둘러보기나 거절당한 뒤면 false
+    get active ()
+    {
+        return !this.stopped;
+    }
+
     get players (): ReadonlyMap<string, Readonly<RemotePlayer>>
     {
         return this.roster;
@@ -217,7 +223,7 @@ export class Relay
     // 포탈로 다른 맵에 갈 때. 서버가 새 방의 welcome 을 다시 보내 줄 때까지 move 는 나가지 않는다
     changeRoom (room: Room, x: number, y: number)
     {
-        if (!this.profile)
+        if (!this.profile || this.profile.room === room)
         {
             return;
         }

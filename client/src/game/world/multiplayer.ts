@@ -1,7 +1,26 @@
 import { Scene } from 'phaser';
-import { Relay } from '../../lib/relay';
+import { Relay, Room } from '../../lib/relay';
+import { loadIdentity } from '../../lib/identity';
 import { Player } from '../objects/Player';
 import { RemotePlayer } from '../objects/RemotePlayer';
+
+// 캐릭터가 있는 씬의 create() 에서 부른다. 멀티플레이 중이면 "나는 이 방에 있다"고 서버에 알리고 동기화를 시작한다.
+// 포탈마다 방 이동을 붙이지 않고 씬 시작에서 선언하므로, 어떤 길로 들어오든 방이 씬과 맞는다.
+// 이미 같은 방이면 relay 가 아무것도 보내지 않는다. 혼자 둘러보는 중이면 null
+export function joinScene (scene: Scene, relay: Relay, player: Player, room: Room, feet: { x: number; y: number }): Multiplayer | null
+{
+    if (!relay.active)
+    {
+        return null;
+    }
+    const identity = loadIdentity();
+    if (identity)
+    {
+        player.setGlowColor(identity.color);
+    }
+    relay.changeRoom(room, Math.round(feet.x), Math.round(feet.y));
+    return new Multiplayer(scene, relay, player);
+}
 
 // 씬 하나의 멀티플레이: 매 프레임 내 위치를 보내고, 같은 방 사람들을 relay 명단대로 그린다.
 // 명단은 relay 가 들고 있어서(씬이 바뀌어도 유지) 이 객체는 명단과 화면을 맞추기만 한다.

@@ -256,6 +256,34 @@ describe('Relay', () =>
         expect(b.relay.players.size).toBe(0);
     });
 
+    it('이미 있는 방으로 옮기라고 하면 아무것도 보내지 않는다 (씬이 시작할 때마다 방을 선언해도 된다)', () =>
+    {
+        const { relay, socket } = connected();
+        const sent = socket.sent.length;
+        relay.changeRoom('forest', 10, 20);
+        expect(socket.sent).toHaveLength(sent);
+        expect(relay.isJoined).toBe(true);
+    });
+
+    it('입장해서 끊기 전까지만 active 다 (재접속 중은 active, 거절·disconnect 후는 아님)', () =>
+    {
+        const { relay } = makeRelay();
+        expect(relay.active).toBe(false);
+        relay.connect({ name: join.name, color: join.color, room: 'forest' });
+        expect(relay.active).toBe(true);
+        FakeSocket.all[0].serverCloses();
+        expect(relay.active).toBe(true);
+        relay.disconnect();
+        expect(relay.active).toBe(false);
+
+        const rejected = makeRelay();
+        rejected.relay.connect({ name: join.name, color: join.color, room: 'forest' });
+        const socket = FakeSocket.all[FakeSocket.all.length - 1];
+        socket.serverOpens();
+        socket.serverSends(error);
+        expect(rejected.relay.active).toBe(false);
+    });
+
     it('이미 접속 중이면 connect 를 다시 불러도 소켓을 하나 더 만들지 않는다', () =>
     {
         const { relay } = connected();

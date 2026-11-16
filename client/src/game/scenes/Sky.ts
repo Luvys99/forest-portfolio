@@ -11,6 +11,8 @@ import { makeTexture } from '../world/textures';
 import { Interactions } from '../world/interactions';
 import { addOneWayPlatform } from '../world/platforms';
 import { spawnPlayer } from '../world/player-setup';
+import { joinScene, Multiplayer } from '../world/multiplayer';
+import { relay } from '../../lib/relay';
 import { addPortal } from '../world/portal';
 import { fadeToScene } from '../world/scene-transition';
 import { ModalLock } from '../world/modal-lock';
@@ -47,6 +49,7 @@ export class Sky extends Scene
     private nextMeteorAt = 0;
 
     private modal!: ModalLock;
+    private multiplayer: Multiplayer | null = null;
     // 이번 판 클리어 기록 (방명록에 남기면 비운다)
     private pendingClearMs: number | null = null;
 
@@ -65,6 +68,7 @@ export class Sky extends Scene
         this.meteors = [];
         this.nextMeteorAt = 0;
         this.pendingClearMs = null;
+        this.multiplayer = null;
     }
 
     create ()
@@ -107,6 +111,11 @@ export class Sky extends Scene
         });
         this.player = spawned.player;
         this.modal = spawned.modal;
+        // 다른 방문자는 보이기만 한다. 부딪히지 않고, 별똥별·기록도 각자 따로다
+        if (relay)
+        {
+            this.multiplayer = joinScene(this, relay, this.player, 'sky', SKY_START);
+        }
 
         // 6. 방명록 · 순위 표지판 (시작 지점, 골인 지점)
         const onWritten = () => this.pendingClearMs = null;
@@ -141,6 +150,7 @@ export class Sky extends Scene
         this.interactions.update(this.player, !this.leaving && !this.modal.isOpen);
         this.updateTimer();
         this.updateMeteors(time, delta / 1000);
+        this.multiplayer?.update(time, delta);
 
         const { scrollX, scrollY } = this.cameras.main;
         for (const layer of this.layers)
