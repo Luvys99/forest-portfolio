@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 384" font-family="system-ui, -apple-system, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif">
+  <title>숲 포트폴리오 아키텍처</title>
+  <defs>
+    <marker id="gold" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#ffd34d"/>
+    </marker>
+    <marker id="mint" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#8dffe0"/>
+    </marker>
+  </defs>
+
+  <!-- 바탕 -->
+  <rect x="1" y="1" width="518" height="382" rx="14" fill="rgba(2,10,16,0.45)" stroke="rgba(255,211,77,0.25)"/>
+
+  <!-- Vercel: 화면 파일 -->
+  <rect x="170" y="14" width="180" height="26" rx="13" fill="none" stroke="rgba(220,238,232,0.45)" stroke-dasharray="4 3"/>
+  <text x="260" y="31" text-anchor="middle" font-size="12" fill="#dceee8">Vercel · 화면 파일 배포</text>
+  <path d="M190 40 L120 62" stroke="rgba(220,238,232,0.45)" stroke-dasharray="4 3" fill="none"/>
+  <path d="M330 40 L400 62" stroke="rgba(220,238,232,0.45)" stroke-dasharray="4 3" fill="none"/>
+
+  <!-- 브라우저 A, B -->
+  <g>
+    <rect x="16" y="62" width="208" height="112" rx="12" fill="rgba(13,49,64,0.9)" stroke="rgba(141,255,224,0.45)"/>
+    <text x="30" y="83" font-size="13" font-weight="700" fill="#fff6d6">브라우저 A</text>
+    <rect x="30" y="94" width="78" height="54" rx="8" fill="rgba(255,211,77,0.12)" stroke="rgba(255,211,77,0.55)"/>
+    <text x="69" y="117" text-anchor="middle" font-size="12" font-weight="700" fill="#ffe9a8">Phaser</text>
+    <text x="69" y="134" text-anchor="middle" font-size="10.5" fill="#dceee8">게임 · 물리</text>
+    <rect x="132" y="94" width="78" height="54" rx="8" fill="rgba(141,255,224,0.1)" stroke="rgba(141,255,224,0.55)"/>
+    <text x="171" y="117" text-anchor="middle" font-size="12" font-weight="700" fill="#c8fff0">React</text>
+    <text x="171" y="134" text-anchor="middle" font-size="10.5" fill="#dceee8">팝업</text>
+    <path d="M110 121 L130 121" stroke="#dceee8" marker-start="url(#mint)" marker-end="url(#mint)"/>
+    <text x="120" y="164" text-anchor="middle" font-size="10.5" fill="#9fc4ba">EventBus 로만 대화</text>
+  </g>
+  <g>
+    <rect x="296" y="62" width="208" height="112" rx="12" fill="rgba(13,49,64,0.9)" stroke="rgba(141,255,224,0.45)"/>
+    <text x="310" y="83" font-size="13" font-weight="700" fill="#fff6d6">브라우저 B</text>
+    <rect x="310" y="94" width="78" height="54" rx="8" fill="rgba(255,211,77,0.12)" stroke="rgba(255,211,77,0.55)"/>
+    <text x="349" y="117" text-anchor="middle" font-size="12" font-weight="700" fill="#ffe9a8">Phaser</text>
+    <text x="349" y="134" text-anchor="middle" font-size="10.5" fill="#dceee8">게임 · 물리</text>
+    <rect x="412" y="94" width="78" height="54" rx="8" fill="rgba(141,255,224,0.1)" stroke="rgba(141,255,224,0.55)"/>
+    <text x="451" y="117" text-anchor="middle" font-size="12" font-weight="700" fill="#c8fff0">React</text>
+    <text x="451" y="134" text-anchor="middle" font-size="10.5" fill="#dceee8">팝업</text>
+    <path d="M390 121 L410 121" stroke="#dceee8" marker-start="url(#mint)" marker-end="url(#mint)"/>
+    <text x="400" y="164" text-anchor="middle" font-size="10.5" fill="#9fc4ba">EventBus 로만 대화</text>
+  </g>
+
+  <!-- 실시간: 브라우저 ↔ 중계 서버 ↔ 브라우저 -->
+  <path d="M150 176 L210 214" stroke="#ffd34d" stroke-width="1.8" fill="none" marker-start="url(#gold)" marker-end="url(#gold)"/>
+  <path d="M370 176 L310 214" stroke="#ffd34d" stroke-width="1.8" fill="none" marker-start="url(#gold)" marker-end="url(#gold)"/>
+  <text x="260" y="196" text-anchor="middle" font-size="11" fill="#ffe9a8">wss · 좌표 초당 15번 · 말풍선</text>
+
+  <rect x="160" y="216" width="200" height="60" rx="12" fill="rgba(255,211,77,0.14)" stroke="#ffd34d"/>
+  <text x="260" y="241" text-anchor="middle" font-size="13.5" font-weight="700" fill="#fff6d6">Spring 중계 서버</text>
+  <text x="260" y="262" text-anchor="middle" font-size="11" fill="#dceee8">Railway · 같은 방에 전달만</text>
+
+  <!-- 저장: 브라우저 → Supabase (서버를 거치지 않는다) -->
+  <path d="M56 176 L56 345 L156 345" stroke="#8dffe0" stroke-width="1.6" fill="none" marker-end="url(#mint)"/>
+  <path d="M464 176 L464 345 L364 345" stroke="#8dffe0" stroke-width="1.6" fill="none" marker-end="url(#mint)"/>
+  <text x="106" y="337" text-anchor="middle" font-size="10.5" fill="#c8fff0">기록·방명록</text>
+  <text x="414" y="337" text-anchor="middle" font-size="10.5" fill="#c8fff0">REST</text>
+
+  <rect x="160" y="318" width="200" height="54" rx="12" fill="rgba(141,255,224,0.1)" stroke="#8dffe0"/>
+  <text x="260" y="341" text-anchor="middle" font-size="13.5" font-weight="700" fill="#fff6d6">Supabase PostgreSQL</text>
+  <text x="260" y="360" text-anchor="middle" font-size="11" fill="#dceee8">RLS 읽기·쓰기만 · 순위는 DB 뷰</text>
+</svg>

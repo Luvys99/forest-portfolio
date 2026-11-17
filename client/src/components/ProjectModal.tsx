@@ -37,6 +37,34 @@ export function ProjectModal ({ project, onClose }: Props)
 
                     <p className="modal-summary">{project.summary}</p>
 
+                    {project.features && (
+                        <ul className="modal-features" aria-label="주요 기능">
+                            {project.features.map(feature => <li key={feature}>{feature}</li>)}
+                        </ul>
+                    )}
+
+                    {project.diagram && (
+                        <figure className="modal-diagram">
+                            <img src={project.diagram.src} alt={project.diagram.alt} />
+                        </figure>
+                    )}
+
+                    {project.decisions && (
+                        <section className="modal-section">
+                            <h3>왜 이렇게 만들었나</h3>
+                            {project.decisions.map(d => (
+                                <article key={d.title} className="modal-decision">
+                                    <h4>{d.title}</h4>
+                                    <p>{d.decision}</p>
+                                    <dl>
+                                        <dt>이유</dt><dd>{d.why}</dd>
+                                        <dt>포기한 것</dt><dd>{d.tradeoff}</dd>
+                                    </dl>
+                                </article>
+                            ))}
+                        </section>
+                    )}
+
                     {project.details.length > 0 && (
                         <ul className="modal-details">
                             {project.details.map(line => <li key={line}>{line}</li>)}
