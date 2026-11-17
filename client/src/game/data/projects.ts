@@ -15,6 +15,22 @@ export interface ProjectSection
     items: string[];
 }
 
+// 구조 그림 (public 안의 경로)
+export interface ProjectDiagram
+{
+    src: string;
+    alt: string;
+}
+
+// 설계 결정 카드: 무엇을 정했고, 왜, 대신 무엇을 포기했나
+export interface ProjectDecision
+{
+    title: string;
+    decision: string;
+    why: string;
+    tradeoff: string;
+}
+
 export interface Project
 {
     id: string;
@@ -28,6 +44,10 @@ export interface Project
     // 상세 팝업에 보여줄 내용 (한 줄씩)
     details: string[];
     sections?: ProjectSection[];
+    // 주요 기능을 짧은 이름으로 (칩)
+    features?: string[];
+    diagram?: ProjectDiagram;
+    decisions?: ProjectDecision[];
     image?: string;
     links: ProjectLinks;
     // true면 "준비 중"으로 보여준다
