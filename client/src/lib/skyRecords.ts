@@ -2,6 +2,8 @@
 // 서버를 직접 운영하지 않고, Supabase가 테이블마다 만들어 주는 REST API를 fetch로 부른다.
 // 누가 무엇을 할 수 있는지는 DB의 RLS 정책이 정한다 (읽기 + 쓰기만, 수정·삭제 불가)
 
+import { getPlayerId } from './playerId';
+
 const URL = import.meta.env.VITE_SUPABASE_URL;
 const KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
@@ -20,9 +22,19 @@ export interface SkyRecord
     created_at: string;
 }
 
+export interface Ranking
+{
+    records: SkyRecord[];
+    // 순위표에 오른 사람(브라우저) 수 = 달에 닿은 사람 수
+    players: number;
+}
+
 export const guestbookEnabled = Boolean(URL && KEY);
 
-async function request<T> (path: string, init: RequestInit = {}): Promise<T>
+// 브라우저 id(player_id)는 DB가 남에게 읽기를 허락하지 않으므로 칸을 직접 고른다 (select=* 는 거절된다)
+const COLUMNS = 'id,name,message,time_ms,created_at';
+
+async function send (path: string, init: RequestInit = {}): Promise<Response>
 {
     if (!URL || !KEY)
     {
@@ -43,19 +55,31 @@ async function request<T> (path: string, init: RequestInit = {}): Promise<T>
         throw new Error(`방명록 요청 실패 (${response.status})`);
     }
 
+    return response;
+}
+
+async function request<T> (path: string, init: RequestInit = {}): Promise<T>
+{
+    const response = await send(path, init);
     return response.status === 204 ? (undefined as T) : response.json();
 }
 
-// 빠른 기록 순
-export function fetchRanking (limit = 10)
+// 브라우저마다 가장 빠른 기록 하나씩, 빠른 순 (sky_ranking 뷰가 고른다)
+export async function fetchRanking (limit = 10): Promise<Ranking>
 {
-    return request<SkyRecord[]>(`sky_records?select=*&order=time_ms.asc,created_at.asc&limit=${limit}`);
+    const response = await send(`sky_ranking?select=${COLUMNS}&order=time_ms.asc,created_at.asc&limit=${limit}`, {
+        // 전체 줄 수를 Content-Range 의 "/" 뒤에 받는다 (예: "0-9/42")
+        headers: { Prefer: 'count=exact' }
+    });
+    const records: SkyRecord[] = await response.json();
+    const total = Number(response.headers.get('Content-Range')?.split('/')[1]);
+    return { records, players: Number.isFinite(total) ? total : records.length };
 }
 
 // 최근 방명록 순
 export function fetchRecent (limit = 20)
 {
-    return request<SkyRecord[]>(`sky_records?select=*&order=created_at.desc&limit=${limit}`);
+    return request<SkyRecord[]>(`sky_records?select=${COLUMNS}&order=created_at.desc&limit=${limit}`);
 }
 
 export async function addRecord (name: string, message: string, timeMs: number)
@@ -66,14 +90,15 @@ export async function addRecord (name: string, message: string, timeMs: number)
         throw new Error(`${Math.ceil(wait / 1000)}초 뒤에 다시 남길 수 있어요`);
     }
 
-    const [ record ] = await request<SkyRecord[]>('sky_records', {
+    const [ record ] = await request<SkyRecord[]>(`sky_records?select=${COLUMNS}`, {
         method: 'POST',
         // 저장된 행을 응답으로 돌려받는다 (내 기록을 순위표에서 강조하려고)
         headers: { Prefer: 'return=representation' },
         body: JSON.stringify({
             name: name.trim().slice(0, NAME_MAX),
             message: message.trim().slice(0, MESSAGE_MAX),
-            time_ms: Math.round(timeMs)
+            time_ms: Math.round(timeMs),
+            player_id: getPlayerId()
         })
     });
 

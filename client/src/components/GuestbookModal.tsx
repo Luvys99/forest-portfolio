@@ -1,8 +1,8 @@
 import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { Modal } from './Modal';
 import { EventBus } from '../game/EventBus';
-import { formatTime } from '../game/world/sky-record';
-import { addRecord, fetchRanking, fetchRecent, guestbookEnabled, MESSAGE_MAX, NAME_MAX, SkyRecord } from '../lib/skyRecords';
+import { formatTime, loadBest } from '../game/world/sky-record';
+import { addRecord, fetchRanking, fetchRecent, guestbookEnabled, MESSAGE_MAX, NAME_MAX, Ranking, SkyRecord } from '../lib/skyRecords';
 
 interface Props
 {
@@ -16,7 +16,7 @@ const formatDate = (iso: string) =>
 
 export function GuestbookModal ({ clearMs, onClose }: Props)
 {
-    const [ ranking, setRanking ] = useState<SkyRecord[]>([]);
+    const [ ranking, setRanking ] = useState<Ranking>({ records: [], players: 0 });
     const [ recent, setRecent ] = useState<SkyRecord[]>([]);
     const [ loading, setLoading ] = useState(true);
     const [ loadError, setLoadError ] = useState('');
@@ -26,6 +26,8 @@ export function GuestbookModal ({ clearMs, onClose }: Props)
     const [ sending, setSending ] = useState(false);
     const [ sendError, setSendError ] = useState('');
     const [ myId, setMyId ] = useState<number | null>(null);
+    // 남긴 기록이 이 브라우저 최고 기록보다 느리면, 순위표에는 최고 기록이 그대로 남는다고 알려 준다
+    const [ keptBest, setKeptBest ] = useState<number | null>(null);
 
     const load = useCallback(async () =>
     {
@@ -69,6 +71,8 @@ export function GuestbookModal ({ clearMs, onClose }: Props)
         {
             const record = await addRecord(name, message, clearMs);
             setMyId(record.id);
+            const best = loadBest();
+            setKeptBest(best !== null && best < clearMs ? best : null);
             // 이번 판 기록은 한 번만 남길 수 있다
             EventBus.emit('guestbook-written');
             await load();
@@ -118,6 +122,9 @@ export function GuestbookModal ({ clearMs, onClose }: Props)
             )}
 
             {myId !== null && <p className="guestbook-done">방명록에 남겼어요. 고마워요!</p>}
+            {keptBest !== null && (
+                <p className="guestbook-kept">순위표에는 이 브라우저의 가장 빠른 기록 <strong>{formatTime(keptBest)}</strong> 이 올라가 있어요</p>
+            )}
 
             {guestbookEnabled && (
                 loading ? <p className="modal-text">불러오는 중…</p>
@@ -126,9 +133,10 @@ export function GuestbookModal ({ clearMs, onClose }: Props)
                     <div className="guestbook-columns">
                         <section>
                             <h3>순위 TOP 10</h3>
-                            {ranking.length === 0 ? <p className="guestbook-empty">아직 기록이 없어요. 첫 번째 주인공이 되어 보세요!</p> : (
+                            {ranking.players > 0 && <p className="guestbook-players">지금까지 {ranking.players}명이 달에 닿았어요</p>}
+                            {ranking.records.length === 0 ? <p className="guestbook-empty">아직 기록이 없어요. 첫 번째 주인공이 되어 보세요!</p> : (
                                 <ol className="guestbook-ranking">
-                                    {ranking.map((record, i) => (
+                                    {ranking.records.map((record, i) => (
                                         <li key={record.id} className={record.id === myId ? 'is-mine' : undefined}>
                                             <span className="rank">{i + 1}</span>
                                             <span className="name">{record.name}</span>
