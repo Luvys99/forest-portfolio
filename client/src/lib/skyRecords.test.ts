@@ -37,7 +37,7 @@ describe('skyRecords', () =>
         await expect(m.fetchRanking()).rejects.toThrow('방명록 설정이 없습니다');
     });
 
-    it('순위는 브라우저별 최고 기록 뷰에서 빠른 순으로, publishable 키를 헤더에 담아 요청한다', async () =>
+    it('순위는 이름별 최고 기록 뷰에서 빠른 순으로, publishable 키를 헤더에 담아 요청한다', async () =>
     {
         const m = await loadModule();
         fetchMock.mockResolvedValueOnce(jsonResponse([]));
@@ -60,22 +60,7 @@ describe('skyRecords', () =>
         expect((await m.fetchRanking()).players).toBe(42);
     });
 
-    it('브라우저 id 칸은 읽지 않는다 (DB가 남에게 읽기를 허락하지 않는다)', async () =>
-    {
-        const m = await loadModule();
-        fetchMock.mockImplementation(async () => jsonResponse([ {} ]));
-
-        await m.fetchRanking();
-        await m.addRecord('숲지기', 20000);
-
-        for (const [ url ] of fetchMock.mock.calls)
-        {
-            expect(String(url)).not.toContain('select=*');
-            expect(String(url)).not.toContain('player_id');
-        }
-    });
-
-    it('기록을 남길 때 이름을 다듬고 브라우저 id 를 담으며, 저장된 행을 돌려받는다', async () =>
+    it('기록을 남길 때 이름을 다듬고, 저장된 행을 돌려받는다', async () =>
     {
         const m = await loadModule();
         const saved = { id: 1, name: '숲지기', time_ms: 20000, created_at: '2026-01-01T00:00:00Z' };
@@ -88,9 +73,8 @@ describe('skyRecords', () =>
         expect(String(url)).toBe('https://example.supabase.co/rest/v1/sky_records?select=id,name,time_ms,created_at');
         expect(init?.method).toBe('POST');
         expect((init?.headers as Record<string, string>).Prefer).toBe('return=representation');
-        expect(Object.keys(body).sort()).toEqual([ 'name', 'player_id', 'time_ms' ]);
+        expect(Object.keys(body).sort()).toEqual([ 'name', 'time_ms' ]);
         expect(body).toMatchObject({ name: '숲지기', time_ms: 20000 });
-        expect(body.player_id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
         expect(record).toEqual(saved);
     });
 

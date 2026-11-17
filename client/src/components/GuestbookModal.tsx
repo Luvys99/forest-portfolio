@@ -3,7 +3,7 @@ import { LoadMoreSentinel } from './LoadMoreSentinel';
 import { Modal } from './Modal';
 import { useGuestbookPages } from './useGuestbookPages';
 import { EventBus } from '../game/EventBus';
-import { formatTime, loadBest } from '../game/world/sky-record';
+import { formatTime } from '../game/world/sky-record';
 import { addGuestbookEntry, MESSAGE_MAX, NAME_MAX } from '../lib/guestbook';
 import { loadIdentity } from '../lib/identity';
 import { addRecord, fetchRanking, Ranking } from '../lib/skyRecords';
@@ -64,7 +64,9 @@ export function GuestbookModal ({ clearMs, onClose }: Props)
     const entry = useSubmit();
     const [ myRecordId, setMyRecordId ] = useState<number | null>(null);
     const [ myEntryId, setMyEntryId ] = useState<number | null>(null);
-    // 올린 기록이 이 브라우저 최고 기록보다 느리면, 순위표에는 최고 기록이 그대로 남는다고 알려 준다
+    // 순위표는 이름마다 한 줄이라, 내 이름 줄을 강조한다
+    const [ myRecordName, setMyRecordName ] = useState<string | null>(null);
+    // 올린 기록이 같은 이름의 최고 기록보다 느리면, 순위표에는 최고 기록이 그대로 남는다고 알려 준다
     const [ keptBest, setKeptBest ] = useState<number | null>(null);
 
     // 처음 불러오기와 기록을 올린 뒤 다시 불러오기가 겹칠 수 있다. 응답 순서와 상관없이 마지막에 보낸 요청만 반영한다
@@ -77,6 +79,7 @@ export function GuestbookModal ({ clearMs, onClose }: Props)
         {
             setRanking(top);
         }
+        return top;
     }, []);
 
     const load = useCallback(async () =>
@@ -110,11 +113,12 @@ export function GuestbookModal ({ clearMs, onClose }: Props)
     {
         const saved = await addRecord(recordName, ms);
         setMyRecordId(saved.id);
-        const best = loadBest();
-        setKeptBest(best !== null && best < ms ? best : null);
+        setMyRecordName(saved.name);
         // 이번 판 기록은 한 번만 올릴 수 있다
         EventBus.emit('record-saved');
-        await fetchLatestRanking();
+        const top = await fetchLatestRanking();
+        const kept = top.records.find(r => r.name === saved.name && r.id !== saved.id);
+        setKeptBest(kept ? kept.time_ms : null);
     }), [ runRecord, fetchLatestRanking ]);
 
     // 입장 이름이 있으면 클리어 기록은 묻지 않고 올린다. 개발 모드(StrictMode)는 effect 를 두 번 부르므로 한 번만 보낸다
@@ -189,7 +193,7 @@ export function GuestbookModal ({ clearMs, onClose }: Props)
             )}
             {myRecordId !== null && <p className="guestbook-done">순위표에 올렸어요!</p>}
             {keptBest !== null && (
-                <p className="guestbook-kept">순위표에는 이 브라우저의 가장 빠른 기록 <strong>{formatTime(keptBest)}</strong> 이 올라가 있어요</p>
+                <p className="guestbook-kept">순위표에는 이 이름의 가장 빠른 기록 <strong>{formatTime(keptBest)}</strong> 이 올라가 있어요</p>
             )}
 
             {supabaseEnabled && myEntryId === null && (
@@ -226,7 +230,7 @@ export function GuestbookModal ({ clearMs, onClose }: Props)
                             {ranking.records.length === 0 ? <p className="guestbook-empty">아직 기록이 없어요. 첫 번째 주인공이 되어 보세요!</p> : (
                                 <ol className="guestbook-ranking">
                                     {ranking.records.map((r, i) => (
-                                        <li key={r.id} className={r.id === myRecordId ? 'is-mine' : undefined}>
+                                        <li key={r.id} className={r.name === myRecordName ? 'is-mine' : undefined}>
                                             <span className="rank">{i + 1}</span>
                                             <span className="name">{r.name}</span>
                                             <span className="time">{formatTime(r.time_ms)}</span>
