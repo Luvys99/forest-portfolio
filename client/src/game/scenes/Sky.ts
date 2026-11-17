@@ -1,4 +1,4 @@
-import { BlendModes, GameObjects, Scene } from 'phaser';
+import { BlendModes, Cameras, GameObjects, Scene } from 'phaser';
 import { EventBus } from '../EventBus';
 import { Player } from '../objects/Player';
 import { VIEW_H, VIEW_W } from '../world/layout';
@@ -20,6 +20,7 @@ import { ModalLock } from '../world/modal-lock';
 // 숲 위 밤하늘 점프맵
 // 구름을 밟고 달까지 올라간다. 떨어지는 별똥별에 맞으면 튕겨 나간다.
 // 클리어 시간을 재고, 최고 기록은 브라우저에 저장한다 (서버 없음)
+// 시작 바닥에 다시 내려오거나 처음으로 버튼(R)을 누르면 기록을 새로 잰다
 
 // 별똥별: 타이머가 도는 동안 화면 위쪽에서 떨어진다
 const METEOR_GAP_MS = [ 1300, 2500 ];
@@ -39,6 +40,7 @@ export class Sky extends Scene
     private interactions: Interactions;
     private layers: { sprite: GameObjects.TileSprite; factor: number }[] = [];
     private leaving = false;
+    private resetting = false;
 
     // 타이머: 처음 발을 떼는 순간 시작, 달에 닿으면 멈춘다
     private startedAt: number | null = null;
@@ -63,6 +65,7 @@ export class Sky extends Scene
         this.interactions = new Interactions(this);
         this.layers = [];
         this.leaving = false;
+        this.resetting = false;
         this.startedAt = null;
         this.clearedMs = null;
         this.meteors = [];
@@ -140,6 +143,7 @@ export class Sky extends Scene
         }).setOrigin(1, 0).setScrollFactor(0).setDepth(60);
         this.timerText.setData('best', best);
         this.updateTimerText(0);
+        this.createResetButton();
 
         EventBus.emit('current-scene-ready', this);
     }
@@ -236,6 +240,13 @@ export class Sky extends Scene
     {
         const now = this.time.now;
 
+        // 시작 바닥에 다시 내려오면 처음부터 (클리어한 뒤에 내려와도 새 판)
+        if (this.startedAt !== null && this.player.onGround && this.player.bottom >= SKY_GROUND_Y - 2)
+        {
+            this.resetRun();
+            return;
+        }
+
         // 시작 바닥에서 처음 발을 떼면 시작
         if (this.startedAt === null)
         {
@@ -270,6 +281,58 @@ export class Sky extends Scene
         const best: number | null = this.timerText.getData('best');
         const bestLine = best ? `\n최고 기록  ${formatTime(best)}` : '';
         this.timerText.setText(`${formatTime(ms)}${bestLine}`);
+    }
+
+    // 타이머와 별똥별을 처음 상태로. 클리어해 둔 기록(pendingClearMs)은 방명록에 남길 수 있게 둔다
+    private resetRun ()
+    {
+        this.startedAt = null;
+        this.clearedMs = null;
+        for (const { img } of this.meteors)
+        {
+            img.destroy();
+        }
+        this.meteors = [];
+        this.updateTimerText(0);
+    }
+
+    // 화면을 어둡게 했다가 시작 위치에서 다시 밝힌다
+    private restart ()
+    {
+        if (this.resetting || this.leaving || this.modal.isOpen)
+        {
+            return;
+        }
+
+        this.resetting = true;
+        this.player.locked = true;
+
+        const cam = this.cameras.main;
+        cam.fadeOut(180, 5, 18, 28);
+        cam.once(Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () =>
+        {
+            this.player.teleport(SKY_START.x, SKY_START.y);
+            this.resetRun();
+            cam.centerOn(SKY_START.x, SKY_START.y - 200);
+            cam.fadeIn(280, 5, 18, 28);
+            this.player.locked = false;
+            this.resetting = false;
+        });
+    }
+
+    private createResetButton ()
+    {
+        const button = this.add.text(VIEW_W - 24, 76, '↺ 처음으로 (R)', {
+            fontFamily: 'sans-serif', fontSize: '15px', color: '#ece6ff',
+            backgroundColor: '#1b1846cc', padding: { x: 12, y: 7 }
+        }).setOrigin(1, 0).setScrollFactor(0).setDepth(60).setAlpha(0.85)
+            .setInteractive({ useHandCursor: true });
+
+        button.on('pointerover', () => button.setAlpha(1));
+        button.on('pointerout', () => button.setAlpha(0.85));
+        button.on('pointerdown', () => this.restart());
+        // 팝업이 열려 있으면 ModalLock 이 키보드를 꺼 두므로 입력칸에서 R 을 쳐도 반응하지 않는다
+        this.input.keyboard!.on('keydown-R', () => this.restart());
     }
 
     private clear (ms: number)
