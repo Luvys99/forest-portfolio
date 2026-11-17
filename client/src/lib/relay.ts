@@ -7,7 +7,7 @@ import { cleanText } from './text';
 const URL = import.meta.env.VITE_RELAY_URL;
 
 export const RELAY_URL = URL;
-// 설정이 없으면 멀티플레이 없이 지금처럼 혼자 노는 모드 (방명록의 guestbookEnabled와 같은 방식)
+// 설정이 없으면 멀티플레이 없이 지금처럼 혼자 노는 모드 (방명록의 supabaseEnabled와 같은 방식)
 export const multiplayerEnabled = Boolean(URL);
 
 export type Room = 'forest' | 'sky';

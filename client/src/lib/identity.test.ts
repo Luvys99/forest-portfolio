@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { clearIdentity, isPaletteColor, loadIdentity, normalizeName, PALETTE, saveIdentity } from './identity';
-import { NAME_MAX } from './skyRecords';
+import { NAME_MAX } from './guestbook';
 
 // 브라우저 sessionStorage 흉내
 function fakeStorage ()

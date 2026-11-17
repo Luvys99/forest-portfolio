@@ -53,7 +53,7 @@ export class Sky extends Scene
 
     private modal!: ModalLock;
     private multiplayer: Multiplayer | null = null;
-    // 이번 판 클리어 기록 (방명록에 남기면 비운다)
+    // 이번 판 클리어 기록 (순위표에 올리면 비운다)
     private pendingClearMs: number | null = null;
 
     constructor ()
@@ -122,9 +122,9 @@ export class Sky extends Scene
         }
 
         // 6. 방명록 · 순위 표지판 (시작 지점, 골인 지점)
-        const onWritten = () => this.pendingClearMs = null;
-        EventBus.on('guestbook-written', onWritten);
-        this.events.once('shutdown', () => EventBus.off('guestbook-written', onWritten));
+        const onSaved = () => this.pendingClearMs = null;
+        EventBus.on('record-saved', onSaved);
+        this.events.once('shutdown', () => EventBus.off('record-saved', onSaved));
         this.createSign(SKY_START.x + 230, SKY_GROUND_Y);
         this.createSign(GOAL.x - 120, GOAL.y);
 

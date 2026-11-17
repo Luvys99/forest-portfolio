@@ -7,6 +7,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import tools.jackson.databind.ObjectMapper;
 
 class ValidationTest {
@@ -51,13 +53,14 @@ class ValidationTest {
     }
 
     /**
-     * 이름 길이 제한은 클라이언트(skyRecords.ts), DB(sky_records.sql), 서버 세 곳에 손으로 적혀 있다.
-     * 서버 값이 DB check 제약과 같은지 본다. 클라이언트 쪽은 client/src/lib/skyRecords.test.ts 가 같은 SQL을 읽는다.
+     * 이름 길이 제한은 클라이언트(guestbook.ts), DB(supabase/*.sql), 서버 세 곳에 손으로 적혀 있다.
+     * 서버 값이 DB check 제약과 같은지 본다. 클라이언트 쪽은 client/src/lib/guestbook.test.ts 가 같은 SQL을 읽는다.
      */
-    @Test
-    @DisplayName("이름 길이 제한이 supabase/sky_records.sql 의 check 제약과 같다")
-    void nameLimitMatchesDatabaseCheckConstraint() throws IOException {
-        String sql = Files.readString(Path.of("..", "supabase", "sky_records.sql"));
+    @ParameterizedTest
+    @ValueSource(strings = {"sky_records.sql", "guestbook.sql"})
+    @DisplayName("이름 길이 제한이 supabase/*.sql 의 check 제약과 같다")
+    void nameLimitMatchesDatabaseCheckConstraint(String file) throws IOException {
+        String sql = Files.readString(Path.of("..", "supabase", file));
         assertThat(sql).containsPattern("char_length\\(name\\) between 1 and " + Validation.NAME_MAX + "\\b");
     }
 }
