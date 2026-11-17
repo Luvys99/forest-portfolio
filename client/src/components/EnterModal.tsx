@@ -1,7 +1,7 @@
 import { FormEvent, useState } from 'react';
 import { Modal } from './Modal';
 import { normalizeName, PALETTE, saveIdentity } from '../lib/identity';
-import { NAME_MAX } from '../lib/skyRecords';
+import { NAME_MAX } from '../lib/guestbook';
 
 interface Props
 {

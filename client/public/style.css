@@ -227,8 +227,12 @@ body {
         }
     }
 
-    input:nth-of-type(2) {
+    .guestbook-message {
         flex-basis: 240px;
+    }
+
+    &.is-record {
+        margin-bottom: 12px;
     }
 
     button {

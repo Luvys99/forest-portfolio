@@ -41,11 +41,11 @@ client/src/components  React 팝업. 공용 Modal 틀 + 프로젝트·소개·�
 client/src/lib         외부 통신(Supabase REST, 앞으로 중계 서버 WebSocket)과 React·Phaser 양쪽이 쓰는 상수
 client/public          projects.json, about.json (내용), 오디오
 server/                Spring Boot WebSocket 중계 서버. 좌표를 같은 방 사람들에게 전달만 하고 물리·충돌·기록은 판정하지 않습니다
-supabase/              방명록 테이블과 RLS 정책
+supabase/              기록·방명록 테이블, RLS 정책, 순위 뷰. migrations/ 는 이미 만든 DB에 적용할 변경
 ```
 - **Phaser와 React는 `EventBus`로만 대화합니다.** `game/`은 React·components를 import하지 않고, `components/`는 씬·객체·`phaser`를 import하지 않습니다. 이 경계는 ESLint `no-restricted-imports`가 막습니다. React가 `game/`에서 가져와도 되는 것은 데이터 타입(`game/data`), `EventBus`, 순수 유틸뿐입니다.
 - **내용은 JSON, 위치는 코드.** 프로젝트 소개는 `public/projects.json`, 맵 좌표는 `game/world/layout.ts`에 두고 id로만 연결합니다.
 - **씬은 재사용됩니다.** Phaser는 씬 객체를 다시 쓰므로, 씬에 상태 필드를 추가하면 반드시 `init()`에서 초기화합니다. 빠뜨리면 숲 → 점프맵 → 숲으로 돌아올 때만 드러납니다.
-- **같은 규칙이 세 곳에 있습니다.** 이름 12자·한마디 60자 제한은 `client/src/lib/skyRecords.ts`, `supabase/sky_records.sql`, `server/.../Validation.java`에 각각 적혀 있습니다. 하나를 바꾸면 셋 다 바꿉니다. 클라이언트·서버 테스트가 SQL과 대조합니다.
+- **같은 규칙이 세 곳에 있습니다.** 이름 12자·한마디 60자 제한은 `client/src/lib/guestbook.ts`, `supabase/*.sql`(기록·방명록), `server/.../Validation.java`에 각각 적혀 있습니다. 하나를 바꾸면 셋 다 바꿉니다. 클라이언트·서버 테스트가 SQL과 대조합니다.
 - **물리 상수는 `client/src/game/physics.ts`에 있습니다.** 점프 속도를 바꾸면 점프맵 구름 간격 테스트(`sky-layout.test.ts`)가 클리어 가능 여부를 알려 줍니다.
 - **중계 서버 메시지 규약**은 `server/README.md`와 이슈 #34에 있습니다. 클라이언트 타입과 서버 record를 같이 고칩니다.

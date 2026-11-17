@@ -2,7 +2,7 @@
 // 브라우저 sessionStorage 에만 두어 새로고침 때 다시 묻지 않는다. 탭을 닫으면 사라진다 (로그인 없음).
 // 세션 id 는 서버가 welcome 으로 준다 (relay.ts)
 
-import { NAME_MAX } from './skyRecords';
+import { NAME_MAX } from './guestbook';
 import { cleanText } from './text';
 
 export interface Identity
