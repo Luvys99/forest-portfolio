@@ -43,6 +43,15 @@ export function ProjectModal ({ project, onClose }: Props)
                         </ul>
                     )}
 
+                    {project.sections?.map(section => (
+                        <section key={section.title} className="modal-section">
+                            <h3>{section.title}</h3>
+                            <ul className="modal-details">
+                                {section.items.map(line => <li key={line}>{line}</li>)}
+                            </ul>
+                        </section>
+                    ))}
+
                     {project.stack.length > 0 && (
                         <ul className="modal-stack">
                             {project.stack.map(tech => <li key={tech}>{tech}</li>)}

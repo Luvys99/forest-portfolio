@@ -8,6 +8,13 @@ export interface ProjectLinks
     blog?: string;
 }
 
+// 내용이 많은 프로젝트는 주제별로 나눠 보여 준다 (예: 기능 / 구조 / 배포)
+export interface ProjectSection
+{
+    title: string;
+    items: string[];
+}
+
 export interface Project
 {
     id: string;
@@ -20,6 +27,7 @@ export interface Project
     summary: string;
     // 상세 팝업에 보여줄 내용 (한 줄씩)
     details: string[];
+    sections?: ProjectSection[];
     image?: string;
     links: ProjectLinks;
     // true면 "준비 중"으로 보여준다
