@@ -1,5 +1,6 @@
 import { VIEW_H, VIEW_W } from './layout';
 import { Ctx, radialGlow, seeded } from './draw-utils';
+import { cloudShape, CLOUD_TEXTURE_H } from './cloud-shape';
 import { drawGlow } from './background-textures';
 import { drawPortal, PortalColors } from './tree-textures';
 import { makeTexture } from './textures';
@@ -67,45 +68,62 @@ export function drawCloudBand (ctx: Ctx, w: number, h: number, color: string, se
     }
 }
 
-export const CLOUD_TOP = 14;
-
-// 밟는 구름 발판 (위쪽 CLOUD_TOP 위치가 밟는 면)
+// 밟는 구름 발판 (모양은 cloud-shape.ts, 위에서 CLOUD_TOP 내려온 곳이 밟는 면)
 export function drawCloudPlatform (ctx: Ctx, w: number)
 {
-    const rand = seeded(w);
-    const h = 56;
+    const { puffs, base } = cloudShape(w);
+    // 아래쪽 은은한 빛. 텍스처 밖으로 넘치면 가장자리에서 잘려 네모난 테두리가 보이므로 납작한 타원으로 안에 넣는다
+    const glowY = base.bottom - 4;
+    const glowR = w / 2;
+    ctx.save();
+    ctx.translate(w / 2, glowY);
+    ctx.scale(1, (CLOUD_TEXTURE_H - glowY) / glowR);
+    radialGlow(ctx, 0, 0, glowR, '150,140,255', 0.22);
+    ctx.restore();
 
-    // 아래쪽 은은한 빛
-    radialGlow(ctx, w / 2, h * 0.7, w * 0.55, '150,140,255', 0.18);
-
-    const g = ctx.createLinearGradient(0, CLOUD_TOP - 8, 0, h - 6);
-    g.addColorStop(0, 'rgba(250,248,255,0.97)');
-    g.addColorStop(0.6, 'rgba(205,200,250,0.92)');
-    g.addColorStop(1, 'rgba(140,140,220,0.85)');
-    ctx.fillStyle = g;
-
-    // 몸통 + 위쪽 몽실몽실한 혹
-    ctx.beginPath();
-    ctx.ellipse(w / 2, CLOUD_TOP + 16, w / 2 - 6, 16, 0, 0, Math.PI * 2);
-    ctx.fill();
-
-    const bumps = Math.max(3, Math.round(w / 45));
-    for (let i = 0; i < bumps; i++)
+    // 덩어리와 아랫부분을 한 경로로 묶는다. 따로 칠하면 반투명한 색이 겹친 자리에 원 테두리가 비친다
+    const outline = () =>
     {
-        const t = (i + 0.5) / bumps;
-        const x = 14 + t * (w - 28);
-        const r = 10 + rand() * 9;
+        const end = (base.bottom - base.top) / 2;
         ctx.beginPath();
-        ctx.arc(x, CLOUD_TOP + 12 - r * 0.25, r, 0, Math.PI * 2);
-        ctx.fill();
-    }
+        ctx.arc(base.left + end, base.top + end, end, Math.PI / 2, Math.PI * 1.5);
+        ctx.arc(base.right - end, base.top + end, end, -Math.PI / 2, Math.PI / 2);
+        ctx.closePath();
+        for (const p of puffs)
+        {
+            ctx.moveTo(p.x + p.r, p.y);
+            ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        }
+    };
 
-    // 윗면 하이라이트
-    ctx.strokeStyle = 'rgba(255,255,255,0.6)';
-    ctx.lineWidth = 2;
+    ctx.save();
+    // 바닥은 평평하게 (가운데 큰 덩어리가 아래로 삐져나오지 않게)
     ctx.beginPath();
-    ctx.ellipse(w / 2, CLOUD_TOP + 10, w / 2 - 20, 5, 0, Math.PI * 1.1, Math.PI * 1.9);
-    ctx.stroke();
+    ctx.rect(0, 0, w, base.bottom);
+    ctx.clip();
+    outline();
+    ctx.clip();
+
+    const g = ctx.createLinearGradient(0, 0, 0, base.bottom);
+    g.addColorStop(0, 'rgba(253,251,255,0.98)');
+    g.addColorStop(0.55, 'rgba(226,220,255,0.96)');
+    g.addColorStop(1, 'rgba(170,164,238,0.94)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, w, base.bottom);
+
+    // 아랫면 그늘
+    const shade = ctx.createLinearGradient(0, base.bottom - 12, 0, base.bottom);
+    shade.addColorStop(0, 'rgba(120,115,215,0)');
+    shade.addColorStop(1, 'rgba(120,115,215,0.35)');
+    ctx.fillStyle = shade;
+    ctx.fillRect(0, base.bottom - 12, w, 12);
+
+    // 덩어리마다 왼쪽 위에 볼록한 빛
+    for (const p of puffs)
+    {
+        radialGlow(ctx, p.x - p.r * 0.35, p.y - p.r * 0.4, p.r * 0.65, '255,255,255', 0.6);
+    }
+    ctx.restore();
 }
 
 export function drawMoon (ctx: Ctx)

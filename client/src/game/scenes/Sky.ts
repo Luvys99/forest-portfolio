@@ -4,10 +4,11 @@ import { Player } from '../objects/Player';
 import { VIEW_H, VIEW_W } from '../world/layout';
 import { CLOUDS, CloudDef, GOAL, SKY_GROUND_Y, SKY_H, SKY_PORTALS, SKY_START, SKY_W } from '../world/sky-layout';
 import {
-    CLOUD_TOP, createSkyPortalTextures, drawCloudBand, drawCloudPlatform, drawLeafFloor, drawMeteor, drawMoon, drawNightSky, drawSign, drawStars
+    createSkyPortalTextures, drawCloudBand, drawCloudPlatform, drawLeafFloor, drawMeteor, drawMoon, drawNightSky, drawSign, drawStars
 } from '../world/sky-textures';
 import { formatTime, loadBest, saveBest } from '../world/sky-record';
 import { makeTexture } from '../world/textures';
+import { CLOUD_TEXTURE_H, CLOUD_TOP } from '../world/cloud-shape';
 import { Interactions } from '../world/interactions';
 import { addOneWayPlatform } from '../world/platforms';
 import { spawnPlayer } from '../world/player-setup';
@@ -350,7 +351,7 @@ export class Sky extends Scene
     private createCloud (cloud: CloudDef)
     {
         const key = `cloud-${cloud.w}`;
-        makeTexture(this, key, cloud.w, 56, ctx => drawCloudPlatform(ctx, cloud.w));
+        makeTexture(this, key, cloud.w, CLOUD_TEXTURE_H, ctx => drawCloudPlatform(ctx, cloud.w));
 
         const img = this.add.image(cloud.x - cloud.w / 2, cloud.y - CLOUD_TOP, key)
             .setOrigin(0)
