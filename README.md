@@ -60,7 +60,7 @@
 | `client/src/components` | React 팝업 (공용 `Modal` 틀 + 프로젝트 / 소개 / 방명록) |
 | `client/src/lib/supabase.ts`, `skyRecords.ts`, `guestbook.ts` | Supabase REST 호출 (공통 / 기록·순위 / 방명록) |
 | `client/public/*.json` | 프로젝트, 소개 내용 (코드 수정 없이 내용만 바꿀 수 있게 분리) |
-| `supabase/sky_records.sql` | 클리어 기록 테이블, RLS 정책, 순위 뷰 (브라우저마다 최고 기록 하나) |
+| `supabase/sky_records.sql` | 클리어 기록 테이블, RLS 정책, 순위 뷰 (이름마다 최고 기록 하나) |
 | `supabase/guestbook.sql` | 방명록 테이블과 RLS 정책 (기록과 상관없이 누구나) |
 | `supabase/migrations/` | 이미 만든 DB에 적용할 변경 (날짜 순서로 한 번씩 실행) |
 | `server/` | 멀티플레이 중계 서버 (Spring Boot WebSocket). 실행·규약은 `server/README.md` |
