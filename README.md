@@ -60,7 +60,8 @@
 | `client/src/components` | React 팝업 (공용 `Modal` 틀 + 프로젝트 / 소개 / 방명록) |
 | `client/src/lib/skyRecords.ts` | Supabase REST 호출 (순위, 최근 방명록, 쓰기) |
 | `client/public/*.json` | 프로젝트, 소개 내용 (코드 수정 없이 내용만 바꿀 수 있게 분리) |
-| `supabase/sky_records.sql` | 방명록 테이블과 RLS 정책 |
+| `supabase/sky_records.sql` | 방명록 테이블, RLS 정책, 순위 뷰 (브라우저마다 최고 기록 하나) |
+| `supabase/migrations/` | 이미 만든 DB에 적용할 변경 (날짜 순서로 한 번씩 실행) |
 | `server/` | 멀티플레이 중계 서버 (Spring Boot WebSocket). 실행·규약은 `server/README.md` |
 | `vercel.json` | Vercel이 `client/`에서 설치·빌드하고 `client/dist`를 배포하도록 지정 (대시보드 설정 없이 저장소만으로 동작) |
 
@@ -83,7 +84,7 @@ npm run build                # dist/ 에 배포용 파일 생성
 npm run lint && npm run typecheck && npm test   # PR마다 CI가 같은 검사를 돌린다
 ```
 
-방명록을 쓰려면 Supabase 프로젝트를 만들고 `supabase/sky_records.sql`을 SQL Editor에서 실행합니다.
+방명록을 쓰려면 Supabase 프로젝트를 만들고 `supabase/sky_records.sql`을 SQL Editor에서 실행합니다. 이미 만든 DB라면 `supabase/migrations/`의 파일 중 아직 실행하지 않은 것을 날짜 순서로 실행합니다.
 
 ## 작업 방식
 

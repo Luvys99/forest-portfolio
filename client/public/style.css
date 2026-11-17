@@ -276,6 +276,21 @@ body {
     font-size: 14px;
 }
 
+.guestbook-kept {
+    margin: -8px 0 16px;
+    font-size: 14px;
+
+    strong {
+        color: #ffe9a8;
+    }
+}
+
+.guestbook-players {
+    margin: -4px 0 8px;
+    color: #9fc4ba;
+    font-size: 13px;
+}
+
 .guestbook-columns {
     display: grid;
     grid-template-columns: 1fr 1.3fr;
