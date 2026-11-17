@@ -1,6 +1,6 @@
 import { VIEW_H, VIEW_W } from './layout';
 import { Ctx, radialGlow, seeded } from './draw-utils';
-import { cloudShape, CLOUD_TEXTURE_H } from './cloud-shape';
+import { CLOUD_LINE, CLOUD_TEXTURE_H, cloudShape } from './cloud-shape';
 import { drawGlow } from './background-textures';
 import { drawPortal, PortalColors } from './tree-textures';
 import { makeTexture } from './textures';
@@ -69,59 +69,83 @@ export function drawCloudBand (ctx: Ctx, w: number, h: number, color: string, se
 }
 
 // 밟는 구름 발판 (모양은 cloud-shape.ts, 위에서 CLOUD_TOP 내려온 곳이 밟는 면)
+// 만화풍 뭉게구름: 덩어리들을 하나로 칠하고 바깥 윤곽에만 선을 두른 뒤, 앞줄 덩어리 위에 짧은 주름 선을 긋는다
 export function drawCloudPlatform (ctx: Ctx, w: number)
 {
-    const { puffs, base } = cloudShape(w);
+    const { lobes } = cloudShape(w);
+    const h = CLOUD_TEXTURE_H;
+    const ink = '78,80,128';
+
     // 아래쪽 은은한 빛. 텍스처 밖으로 넘치면 가장자리에서 잘려 네모난 테두리가 보이므로 납작한 타원으로 안에 넣는다
-    const glowY = base.bottom - 4;
+    const glowY = h - 14;
     const glowR = w / 2;
     ctx.save();
     ctx.translate(w / 2, glowY);
-    ctx.scale(1, (CLOUD_TEXTURE_H - glowY) / glowR);
-    radialGlow(ctx, 0, 0, glowR, '150,140,255', 0.22);
+    ctx.scale(1, (h - glowY) / glowR);
+    radialGlow(ctx, 0, 0, glowR, '150,140,255', 0.2);
     ctx.restore();
 
-    // 덩어리와 아랫부분을 한 경로로 묶는다. 따로 칠하면 반투명한 색이 겹친 자리에 원 테두리가 비친다
-    const outline = () =>
+    const body = () =>
     {
-        const end = (base.bottom - base.top) / 2;
         ctx.beginPath();
-        ctx.arc(base.left + end, base.top + end, end, Math.PI / 2, Math.PI * 1.5);
-        ctx.arc(base.right - end, base.top + end, end, -Math.PI / 2, Math.PI / 2);
-        ctx.closePath();
-        for (const p of puffs)
+        for (const { x, y, r } of lobes)
         {
-            ctx.moveTo(p.x + p.r, p.y);
-            ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+            ctx.moveTo(x + r, y);
+            ctx.arc(x, y, r, 0, Math.PI * 2);
         }
     };
 
+    // 1. 바깥 윤곽: 굵게 그은 선 위를 몸통으로 덮으면 바깥쪽 절반만 남는다
+    body();
+    ctx.lineWidth = CLOUD_LINE * 2;
+    ctx.strokeStyle = `rgba(${ink},0.9)`;
+    ctx.stroke();
+
+    // 2. 몸통: 완전한 흰색이 아닌 따뜻한 미색, 아래로 갈수록 푸르스름한 회색
+    const fill = ctx.createLinearGradient(0, 0, 0, h);
+    fill.addColorStop(0, 'rgb(252,250,244)');
+    fill.addColorStop(0.55, 'rgb(240,239,243)');
+    fill.addColorStop(1, 'rgb(203,206,228)');
+    ctx.fillStyle = fill;
+    body();
+    ctx.fill();
+
     ctx.save();
-    // 바닥은 평평하게 (가운데 큰 덩어리가 아래로 삐져나오지 않게)
-    ctx.beginPath();
-    ctx.rect(0, 0, w, base.bottom);
-    ctx.clip();
-    outline();
+    body();
     ctx.clip();
 
-    const g = ctx.createLinearGradient(0, 0, 0, base.bottom);
-    g.addColorStop(0, 'rgba(253,251,255,0.98)');
-    g.addColorStop(0.55, 'rgba(226,220,255,0.96)');
-    g.addColorStop(1, 'rgba(170,164,238,0.94)');
-    ctx.fillStyle = g;
-    ctx.fillRect(0, 0, w, base.bottom);
-
-    // 아랫면 그늘
-    const shade = ctx.createLinearGradient(0, base.bottom - 12, 0, base.bottom);
-    shade.addColorStop(0, 'rgba(120,115,215,0)');
-    shade.addColorStop(1, 'rgba(120,115,215,0.35)');
-    ctx.fillStyle = shade;
-    ctx.fillRect(0, base.bottom - 12, w, 12);
-
-    // 덩어리마다 왼쪽 위에 볼록한 빛
-    for (const p of puffs)
+    // 3. 덩어리마다 오른쪽 아래 그늘, 왼쪽 위 빛 (몸통 안에서만)
+    for (const { x, y, r } of lobes)
     {
-        radialGlow(ctx, p.x - p.r * 0.35, p.y - p.r * 0.4, p.r * 0.65, '255,255,255', 0.6);
+        radialGlow(ctx, x + r * 0.35, y + r * 0.45, r * 0.8, '170,175,215', 0.28);
+        radialGlow(ctx, x - r * 0.3, y - r * 0.4, r * 0.55, '255,255,255', 0.55);
+    }
+
+    // 4. 앞줄 덩어리의 윗둘레 주름 선과 오른쪽 아래 빗금 (참고 그림의 명암 선)
+    // 모두 같은 모양이면 무늬처럼 반복돼 보이므로 덩어리마다 위치와 길이를 조금씩 바꾸고, 몇 개는 건너뛴다
+    const rand = seeded(w + 1);
+    ctx.lineCap = 'round';
+    for (const { x, y, r, front } of lobes)
+    {
+        if (!front || rand() < 0.3)
+        {
+            continue;
+        }
+        const start = (1.05 + rand() * 0.2) * Math.PI;
+        ctx.lineWidth = 1.5;
+        ctx.strokeStyle = `rgba(${ink},0.5)`;
+        ctx.beginPath();
+        ctx.arc(x, y, r, start, start + (0.3 + rand() * 0.25) * Math.PI);
+        ctx.stroke();
+
+        ctx.lineWidth = 1.1;
+        ctx.strokeStyle = `rgba(${ink},0.3)`;
+        for (const k of [ 0.6, 0.78 ])
+        {
+            ctx.beginPath();
+            ctx.arc(x, y, r * k, 0.1 * Math.PI, 0.35 * Math.PI);
+            ctx.stroke();
+        }
     }
     ctx.restore();
 }

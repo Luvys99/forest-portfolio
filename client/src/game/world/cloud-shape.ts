@@ -2,59 +2,72 @@ import { seeded } from './draw-utils';
 
 // 밟는 구름 발판의 모양 (그리기는 sky-textures.ts). 텍스처 크기와 밟는 면 높이를 지키는지 테스트하려고 계산만 따로 둔다
 
-export const CLOUD_TEXTURE_H = 72;
+export const CLOUD_TEXTURE_H = 80;
 // 텍스처 위에서 이만큼 내려온 곳이 밟는 면 (그 위는 덩어리가 부풀 자리)
-export const CLOUD_TOP = 30;
+export const CLOUD_TOP = 32;
+// 윤곽선 굵기. 덩어리가 텍스처 끝에 닿으면 선이 잘리므로 이만큼 띄운다
+export const CLOUD_LINE = 2;
 
-export interface Puff
+export interface Lobe
 {
     x: number;
     y: number;
     r: number;
+    // 앞줄(아래) 덩어리. 몸통 앞으로 튀어나와 보이게 윗둘레에 주름 선을 긋는다
+    front: boolean;
 }
 
-export interface CloudShape
-{
-    // 위쪽 몽실몽실한 덩어리 (가운데가 크고 양 끝이 작다)
-    puffs: Puff[];
-    // 납작한 아랫부분 (양 끝이 둥근 막대)
-    base: { left: number; right: number; top: number; bottom: number };
-}
+const EDGE = CLOUD_LINE + 1;
+// 뒷줄 덩어리 하나가 차지하는 너비. 짧은 구름은 2개, 쉼터 구름은 6개
+const BACK_SPACING = 62;
 
-const PUFF_Y = CLOUD_TOP + 10;
-// 덩어리 꼭대기가 텍스처 위로 잘리지 않을 만큼
-const PUFF_R_MAX = PUFF_Y - 2;
-const PUFF_R_MIN = 10;
-const SIDE_PAD = 4;
-// 덩어리 하나가 차지하는 너비. 짧은 구름은 3개, 쉼터 구름은 6~7개
-const PUFF_SPACING = 56;
-
-export function cloudShape (w: number): CloudShape
+// 뒷줄(위, 크다), 골짜기, 양 끝, 앞줄(아래, 작다) 덩어리를 겹쳐 울퉁불퉁한 윤곽을 만든다
+export function cloudShape (w: number): { lobes: Lobe[] }
 {
     const rand = seeded(w);
-    const base = { left: SIDE_PAD, right: w - SIDE_PAD, top: CLOUD_TOP + 4, bottom: CLOUD_TEXTURE_H - 12 };
+    const left = EDGE;
+    const right = w - EDGE;
+    const bottom = CLOUD_TEXTURE_H - EDGE;
 
-    const count = Math.max(3, Math.round(w / PUFF_SPACING));
-    const biggest = Math.min(PUFF_R_MAX, (w - SIDE_PAD * 2) / count * 0.85);
-    const radii = Array.from({ length: count }, (_, i) =>
+    // 뒷줄: 가운데가 크고 양 끝이 작다
+    const backCount = Math.max(2, Math.round(w / BACK_SPACING));
+    const backMax = Math.min(CLOUD_TOP + 6 - EDGE, (right - left) / backCount * 0.62);
+    const backRadii = Array.from({ length: backCount }, (_, i) =>
     {
-        // 0(양 끝) → 1(가운데)
-        const middle = Math.sin(Math.PI * (i + 0.5) / count);
-        // 크고 작은 덩어리가 번갈아 있어야 줄 선 혹처럼 보이지 않는다
-        const wobble = i % 2 === 1 ? 0.82 : 1;
-        const r = biggest * (0.5 + 0.5 * middle) * wobble - rand() * 3;
-        return Math.max(PUFF_R_MIN, r);
+        const middle = Math.sin(Math.PI * (i + 0.5) / backCount);
+        return backMax * (0.72 + 0.28 * middle) - rand() * 3;
     });
-
-    // 양 끝 덩어리가 아랫부분의 둥근 끝과 맞닿게 놓고, 그 사이는 고르게 나눈다
-    const first = base.left + radii[0];
-    const last = base.right - radii[count - 1];
-    const puffs = radii.map((r, i) => ({
-        x: first + (last - first) * i / (count - 1),
-        // 작은 덩어리는 조금 낮게 내려 둥근 윤곽을 만든다
-        y: PUFF_Y + (biggest - r) * 0.45,
-        r
+    const back = spread(backRadii, left, right).map(([ x, r ]) => ({
+        x, r, y: CLOUD_TOP + 6 + (backMax - r) * 0.6 + rand() * 2, front: false
     }));
 
-    return { puffs, base };
+    // 골짜기: 뒷줄 덩어리 사이에 작은 덩어리를 끼워 밟는 높이에 빈틈이 없게 하고, 윤곽을 더 울퉁불퉁하게 한다
+    const valleys = back.slice(1).map((b, i) =>
+    {
+        const a = back[i];
+        const r = Math.min(a.r, b.r) * 0.6;
+        return { x: (a.x + b.x) / 2 + (rand() - 0.5) * 6, y: CLOUD_TOP + r * 0.3, r, front: false };
+    });
+
+    // 양 끝: 뒷줄과 앞줄 사이를 둥글게 메운다
+    const sideR = backMax * 0.55;
+    const sides = [ left + sideR, right - sideR ].map(x => ({ x, r: sideR, y: CLOUD_TOP + 18, front: false }));
+
+    // 앞줄: 작은 덩어리가 아래를 울퉁불퉁하게 만든다
+    const frontCount = backCount + 1;
+    const frontMax = backMax * 0.62;
+    const frontRadii = Array.from({ length: frontCount }, (_, i) => frontMax * (i % 2 === 0 ? 0.92 : 0.78) - rand() * 2);
+    const front = spread(frontRadii, left + sideR * 0.5, right - sideR * 0.5).map(([ x, r ]) => ({
+        x, r, y: bottom - r - rand() * 3, front: true
+    }));
+
+    return { lobes: [ ...back, ...valleys, ...sides, ...front ] };
+}
+
+// 양 끝 덩어리가 [from, to] 끝에 맞닿게 놓고 그 사이는 고르게 나눈다
+function spread (radii: number[], from: number, to: number): [ number, number ][]
+{
+    const first = from + radii[0];
+    const last = to - radii[radii.length - 1];
+    return radii.map((r, i) => [ first + (last - first) * i / Math.max(1, radii.length - 1), r ]);
 }
