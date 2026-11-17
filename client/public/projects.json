@@ -45,20 +45,46 @@
     {
         "id": "forest",
         "title": "숲 포트폴리오",
-        "subtitle": "Phaser 4 · React",
+        "subtitle": "Phaser 4 · React · Spring 멀티플레이",
         "period": "2026.11 ~",
         "role": "1인 개발",
-        "stack": ["Phaser 4", "React", "TypeScript", "Vite"],
-        "summary": "메이플스토리 엘로딘 분위기의 숲을 걸어 다니며 프로젝트를 구경하는 2D 포트폴리오",
-        "details": [
-            "이미지 에셋 없이 캔버스로 직접 그린 배경 + 패럴랙스 + 파티클",
-            "발판, 사다리, 포탈이 있는 큰 황금 나무 맵",
-            "프로젝트 내용은 projects.json으로 관리",
-            "밤하늘 점프맵 + 방명록·순위표 (Supabase REST + RLS)"
+        "stack": ["Phaser 4", "React 19", "TypeScript", "Vite", "Spring Boot 4", "Java 25", "WebSocket", "Supabase (PostgreSQL)", "Vercel", "Railway", "Docker", "GitHub Actions", "Vitest", "JUnit"],
+        "summary": "메이플스토리 엘로딘 분위기의 숲을 걸어 다니며 프로젝트를 구경하는 2D 포트폴리오. 같은 시간에 들어온 사람끼리 서로의 캐릭터가 보이고 말풍선으로 이야기할 수 있다",
+        "details": [],
+        "sections": [
+            {
+                "title": "기능",
+                "items": [
+                    "발판, 사다리, 포탈이 있는 큰 황금 나무 맵. 구슬 앞에서 ↑ 를 누르면 프로젝트 소개가 열린다",
+                    "멀티플레이: 입장할 때 이름과 정령 색을 고르면, 같은 맵에 있는 사람들의 움직임이 실시간으로 보인다",
+                    "말풍선 채팅과 지금 접속한 사람 수",
+                    "밤하늘 점프맵: 구름을 밟고 달까지 올라가는 타임 어택. 별똥별을 피하고, 떨어지면 처음으로",
+                    "방명록과 순위표: 클리어 기록은 이름마다 최고 기록 하나로, 방명록은 누구나 남기고 끝없이 내려 볼 수 있다",
+                    "휴대폰 화면 버튼, 카카오톡 안에서 열면 기기 브라우저로 넘기기, 배경음악"
+                ]
+            },
+            {
+                "title": "구조",
+                "items": [
+                    "그림: 이미지 파일 없이 배경, 나무, 캐릭터, 구름을 모두 캔버스 코드로 그렸다 (패럴랙스, 파티클)",
+                    "화면: 게임은 Phaser, 팝업은 React. 둘은 EventBus 로만 신호를 주고받고, 서로 import 하지 못하게 ESLint 로 막았다",
+                    "실시간 서버: Spring Boot WebSocket 중계 서버. 좌표와 말풍선을 같은 방 사람들에게 전달만 하고, 물리·충돌은 각자 브라우저가 계산한다",
+                    "메시지 규약: STOMP 대신 JSON 메시지 + 클라이언트·서버가 같은 파일을 읽는 계약 테스트",
+                    "데이터: Supabase PostgreSQL 을 REST 로 바로 부르고, 누가 무엇을 할 수 있는지는 RLS(읽기·쓰기만)와 DB 뷰가 정한다",
+                    "내용과 위치를 나눴다: 프로젝트 소개는 projects.json, 맵 좌표는 코드"
+                ]
+            },
+            {
+                "title": "배포·운영",
+                "items": [
+                    "화면 Vercel, 중계 서버 Railway (Docker, 싱가포르 리전, wss), 데이터베이스 Supabase",
+                    "GitHub Actions CI 가 클라이언트(린트, 타입, Vitest, 빌드)와 서버(JUnit, 빌드)를 따로 돌리고, 통과해야 main 에 머지된다",
+                    "기능마다 이슈 → 브랜치 → PR 로 진행. 팀원 5명과 같이 플레이하고 받은 의견도 이슈로 나눠 반영했다"
+                ]
+            }
         ],
         "links": {
-            "github": "https://github.com/Luvys99/forest-portfolio",
-            "demo": "https://forest-portfolio-pi.vercel.app"
+            "github": "https://github.com/Luvys99/forest-portfolio"
         }
     }
 ]
