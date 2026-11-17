@@ -18,10 +18,14 @@ export interface GuestbookEntry
 
 const COLUMNS = 'id,name,message,created_at';
 
-// 최근 글 순
-export function fetchGuestbook (limit = 20)
+export const GUESTBOOK_PAGE = 20;
+
+// 최근 글 순으로 한 묶음. beforeId 를 주면 그 글보다 오래된 것부터 (id 는 쓴 순서대로 커진다).
+// 몇 번째부터(offset)가 아니라 마지막으로 받은 글 기준이라, 보는 사이에 새 글이 올라와도 겹치거나 빠지지 않는다
+export function fetchGuestbook (beforeId?: number, limit = GUESTBOOK_PAGE)
 {
-    return request<GuestbookEntry[]>(`guestbook?select=${COLUMNS}&order=created_at.desc,id.desc&limit=${limit}`);
+    const before = beforeId === undefined ? '' : `&id=lt.${beforeId}`;
+    return request<GuestbookEntry[]>(`guestbook?select=${COLUMNS}${before}&order=id.desc&limit=${limit}`);
 }
 
 export async function addGuestbookEntry (name: string, message: string)

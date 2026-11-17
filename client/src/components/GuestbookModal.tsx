@@ -1,8 +1,10 @@
 import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
+import { LoadMoreSentinel } from './LoadMoreSentinel';
 import { Modal } from './Modal';
+import { useGuestbookPages } from './useGuestbookPages';
 import { EventBus } from '../game/EventBus';
 import { formatTime, loadBest } from '../game/world/sky-record';
-import { addGuestbookEntry, fetchGuestbook, GuestbookEntry, MESSAGE_MAX, NAME_MAX } from '../lib/guestbook';
+import { addGuestbookEntry, MESSAGE_MAX, NAME_MAX } from '../lib/guestbook';
 import { loadIdentity } from '../lib/identity';
 import { addRecord, fetchRanking, Ranking } from '../lib/skyRecords';
 import { supabaseEnabled } from '../lib/supabase';
@@ -47,7 +49,9 @@ function useSubmit ()
 export function GuestbookModal ({ clearMs, onClose }: Props)
 {
     const [ ranking, setRanking ] = useState<Ranking>({ records: [], players: 0 });
-    const [ entries, setEntries ] = useState<GuestbookEntry[]>([]);
+    const pages = useGuestbookPages();
+    const { reset: resetEntries } = pages;
+    const entryList = useRef<HTMLUListElement>(null);
     const [ loading, setLoading ] = useState(true);
     const [ loadError, setLoadError ] = useState('');
 
@@ -81,8 +85,7 @@ export function GuestbookModal ({ clearMs, onClose }: Props)
         setLoadError('');
         try
         {
-            const [ , latest ] = await Promise.all([ fetchLatestRanking(), fetchGuestbook() ]);
-            setEntries(latest);
+            await Promise.all([ fetchLatestRanking(), resetEntries() ]);
         }
         catch
         {
@@ -92,7 +95,7 @@ export function GuestbookModal ({ clearMs, onClose }: Props)
         {
             setLoading(false);
         }
-    }, [ fetchLatestRanking ]);
+    }, [ fetchLatestRanking, resetEntries ]);
 
     useEffect(() =>
     {
@@ -148,7 +151,9 @@ export function GuestbookModal ({ clearMs, onClose }: Props)
             const saved = await addGuestbookEntry(name, message);
             setMyEntryId(saved.id);
             setMessage('');
-            setEntries(await fetchGuestbook());
+            // 첫 묶음부터 다시 보여 주므로 목록도 맨 위로 (내 글이 맨 위에 있다)
+            entryList.current?.scrollTo({ top: 0 });
+            await resetEntries();
         });
     };
 
@@ -233,9 +238,9 @@ export function GuestbookModal ({ clearMs, onClose }: Props)
 
                         <section>
                             <h3>방명록</h3>
-                            {entries.length === 0 ? <p className="guestbook-empty">아직 남긴 글이 없어요. 첫 글을 남겨 보세요!</p> : (
-                                <ul className="guestbook-recent">
-                                    {entries.map(e => (
+                            {pages.entries.length === 0 ? <p className="guestbook-empty">아직 남긴 글이 없어요. 첫 글을 남겨 보세요!</p> : (
+                                <ul ref={entryList} className="guestbook-recent">
+                                    {pages.entries.map(e => (
                                         <li key={e.id} className={e.id === myEntryId ? 'is-mine' : undefined}>
                                             <div>
                                                 <span className="name">{e.name}</span>
@@ -244,6 +249,17 @@ export function GuestbookModal ({ clearMs, onClose }: Props)
                                             <p>{e.message}</p>
                                         </li>
                                     ))}
+                                    {/* 목록 칸이 따로 스크롤되므로 끝 표시도 그 안에 둔다 */}
+                                    <li className="guestbook-more">
+                                        {pages.moreError ? (
+                                            <>더 불러오지 못했어요 <button type="button" onClick={pages.loadMore}>다시 시도</button></>
+                                        ) : pages.hasMore ? (
+                                            <>
+                                                <LoadMoreSentinel onVisible={pages.loadMore} watchKey={pages.entries.length} />
+                                                {pages.loadingMore && '불러오는 중…'}
+                                            </>
+                                        ) : `처음 남긴 글까지 다 봤어요 · ${pages.entries.length}개`}
+                                    </li>
                                 </ul>
                             )}
                         </section>

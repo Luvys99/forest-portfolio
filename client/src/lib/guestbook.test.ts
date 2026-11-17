@@ -38,15 +38,18 @@ describe('guestbook', () =>
         vi.unstubAllGlobals();
     });
 
-    it('방명록은 guestbook 테이블에서 최근 글 순으로 읽는다', async () =>
+    it('방명록은 guestbook 테이블에서 최근 글 순으로 한 묶음씩 읽는다', async () =>
     {
         const m = await loadModule();
-        fetchMock.mockResolvedValueOnce(jsonResponse([]));
+        fetchMock.mockImplementation(async () => jsonResponse([]));
 
-        await m.fetchGuestbook(5);
+        await m.fetchGuestbook();
+        await m.fetchGuestbook(41, 5);
 
-        expect(String(fetchMock.mock.calls[0][0]))
-            .toBe('https://example.supabase.co/rest/v1/guestbook?select=id,name,message,created_at&order=created_at.desc,id.desc&limit=5');
+        const [ first, next ] = fetchMock.mock.calls.map(([ url ]) => String(url));
+        expect(first).toBe(`https://example.supabase.co/rest/v1/guestbook?select=id,name,message,created_at&order=id.desc&limit=${m.GUESTBOOK_PAGE}`);
+        // 다음 묶음은 마지막으로 받은 글(41)보다 오래된 것부터
+        expect(next).toBe('https://example.supabase.co/rest/v1/guestbook?select=id,name,message,created_at&id=lt.41&order=id.desc&limit=5');
     });
 
     it('글을 남길 때 이름·한마디를 다듬고 길이를 자른다 (기록과 상관없다)', async () =>
