@@ -1,8 +1,9 @@
-import { FormEvent, useCallback, useEffect, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { Modal } from './Modal';
 import { EventBus } from '../game/EventBus';
 import { formatTime, loadBest } from '../game/world/sky-record';
 import { addGuestbookEntry, fetchGuestbook, GuestbookEntry, MESSAGE_MAX, NAME_MAX } from '../lib/guestbook';
+import { loadIdentity } from '../lib/identity';
 import { addRecord, fetchRanking, Ranking } from '../lib/skyRecords';
 import { supabaseEnabled } from '../lib/supabase';
 
@@ -22,7 +23,7 @@ function useSubmit ()
     const [ sending, setSending ] = useState(false);
     const [ error, setError ] = useState('');
 
-    const run = async (action: () => Promise<void>) =>
+    const run = useCallback(async (action: () => Promise<void>) =>
     {
         setSending(true);
         setError('');
@@ -38,7 +39,7 @@ function useSubmit ()
         {
             setSending(false);
         }
-    };
+    }, []);
 
     return { sending, error, run };
 }
@@ -50,8 +51,10 @@ export function GuestbookModal ({ clearMs, onClose }: Props)
     const [ loading, setLoading ] = useState(true);
     const [ loadError, setLoadError ] = useState('');
 
-    // 두 폼이 이름을 같이 쓴다
-    const [ name, setName ] = useState('');
+    // 입장할 때 정한 이름을 쓴다 (#61). 중계 서버 없이 실행해 입장 이름이 없을 때만 입력받는다
+    const [ identityName ] = useState(() => loadIdentity()?.name ?? null);
+    const [ typedName, setTypedName ] = useState('');
+    const name = identityName ?? typedName;
     const [ message, setMessage ] = useState('');
     const record = useSubmit();
     const entry = useSubmit();
@@ -60,14 +63,25 @@ export function GuestbookModal ({ clearMs, onClose }: Props)
     // 올린 기록이 이 브라우저 최고 기록보다 느리면, 순위표에는 최고 기록이 그대로 남는다고 알려 준다
     const [ keptBest, setKeptBest ] = useState<number | null>(null);
 
+    // 처음 불러오기와 기록을 올린 뒤 다시 불러오기가 겹칠 수 있다. 응답 순서와 상관없이 마지막에 보낸 요청만 반영한다
+    const rankingRequest = useRef(0);
+    const fetchLatestRanking = useCallback(async () =>
+    {
+        const id = ++rankingRequest.current;
+        const top = await fetchRanking();
+        if (id === rankingRequest.current)
+        {
+            setRanking(top);
+        }
+    }, []);
+
     const load = useCallback(async () =>
     {
         setLoading(true);
         setLoadError('');
         try
         {
-            const [ top, latest ] = await Promise.all([ fetchRanking(), fetchGuestbook() ]);
-            setRanking(top);
+            const [ , latest ] = await Promise.all([ fetchLatestRanking(), fetchGuestbook() ]);
             setEntries(latest);
         }
         catch
@@ -78,7 +92,7 @@ export function GuestbookModal ({ clearMs, onClose }: Props)
         {
             setLoading(false);
         }
-    }, []);
+    }, [ fetchLatestRanking ]);
 
     useEffect(() =>
     {
@@ -88,6 +102,29 @@ export function GuestbookModal ({ clearMs, onClose }: Props)
         }
     }, [ load ]);
 
+    const { run: runRecord } = record;
+    const saveRecord = useCallback((recordName: string, ms: number) => runRecord(async () =>
+    {
+        const saved = await addRecord(recordName, ms);
+        setMyRecordId(saved.id);
+        const best = loadBest();
+        setKeptBest(best !== null && best < ms ? best : null);
+        // 이번 판 기록은 한 번만 올릴 수 있다
+        EventBus.emit('record-saved');
+        await fetchLatestRanking();
+    }), [ runRecord, fetchLatestRanking ]);
+
+    // 입장 이름이 있으면 클리어 기록은 묻지 않고 올린다. 개발 모드(StrictMode)는 effect 를 두 번 부르므로 한 번만 보낸다
+    const autoSaved = useRef(false);
+    useEffect(() =>
+    {
+        if (supabaseEnabled && identityName && clearMs !== null && !autoSaved.current)
+        {
+            autoSaved.current = true;
+            saveRecord(identityName, clearMs);
+        }
+    }, [ identityName, clearMs, saveRecord ]);
+
     const submitRecord = (event: FormEvent) =>
     {
         event.preventDefault();
@@ -95,17 +132,7 @@ export function GuestbookModal ({ clearMs, onClose }: Props)
         {
             return;
         }
-
-        record.run(async () =>
-        {
-            const saved = await addRecord(name, clearMs);
-            setMyRecordId(saved.id);
-            const best = loadBest();
-            setKeptBest(best !== null && best < clearMs ? best : null);
-            // 이번 판 기록은 한 번만 올릴 수 있다
-            EventBus.emit('record-saved');
-            setRanking(await fetchRanking());
-        });
+        saveRecord(name, clearMs);
     };
 
     const submitEntry = (event: FormEvent) =>
@@ -125,10 +152,10 @@ export function GuestbookModal ({ clearMs, onClose }: Props)
         });
     };
 
-    const nameInput = (
+    const nameInput = identityName === null && (
         <input
-            value={name}
-            onChange={event => setName(event.target.value)}
+            value={typedName}
+            onChange={event => setTypedName(event.target.value)}
             maxLength={NAME_MAX}
             placeholder={`이름 (${NAME_MAX}자)`}
             aria-label="이름"
@@ -145,7 +172,9 @@ export function GuestbookModal ({ clearMs, onClose }: Props)
 
             {supabaseEnabled && clearMs !== null && myRecordId === null && (
                 <form className="guestbook-form is-record" onSubmit={submitRecord}>
-                    <p className="guestbook-clear">클리어 기록 <strong>{formatTime(clearMs)}</strong> 을 순위표에 올려 보세요</p>
+                    <p className="guestbook-clear">
+                        클리어 기록 <strong>{formatTime(clearMs)}</strong> 을 {identityName ? <><strong>{identityName}</strong> 이름으로 </> : ''}순위표에 올려요
+                    </p>
                     {nameInput}
                     <button type="submit" disabled={record.sending || !name.trim()}>
                         {record.sending ? '올리는 중…' : '순위표에 올리기'}
@@ -160,7 +189,9 @@ export function GuestbookModal ({ clearMs, onClose }: Props)
 
             {supabaseEnabled && myEntryId === null && (
                 <form className="guestbook-form" onSubmit={submitEntry}>
-                    <p className="guestbook-clear">다녀간 흔적을 남겨 주세요</p>
+                    <p className="guestbook-clear">
+                        다녀간 흔적을 남겨 주세요{identityName && <> · <strong>{identityName}</strong> 이름으로 남겨요</>}
+                    </p>
                     {nameInput}
                     <input
                         className="guestbook-message"
